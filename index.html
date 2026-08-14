@@ -1,0 +1,2517 @@
+<!DOCTYPE html>
+<html class="light" lang="ar" dir="rtl">
+<head>
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
+    <title>KERA - Facial Filler Injection & Anatomical Cross-Section Simulator</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    
+    <!-- Google Fonts: Inter, Cairo, Tajawal & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Inter:wght@400;600;700;800;900&family=Tajawal:wght@400;500;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    screens: {
+                        'xs': '420px',
+                    },
+                    colors: {
+                        primary: {
+                            DEFAULT: '#006591',
+                            light: '#0ea5e9',
+                            dark: '#004c6e',
+                            container: '#c9e6ff',
+                            surface: '#f0f7ff'
+                        },
+                        surface: {
+                            DEFAULT: '#f6faff',
+                            card: '#ffffff',
+                            subtle: '#edf2f7',
+                            border: '#dbeafe'
+                        },
+                        danger: {
+                            DEFAULT: '#ef4444',
+                            surface: '#fef2f2',
+                            border: '#fecaca'
+                        },
+                        safe: {
+                            DEFAULT: '#10b981',
+                            surface: '#ecfdf5',
+                            border: '#a7f3d0'
+                        },
+                        warning: {
+                            DEFAULT: '#f59e0b',
+                            surface: '#fffbeb',
+                            border: '#fde68a'
+                        }
+                    },
+                    fontFamily: {
+                        brand: ['Inter', 'sans-serif'],
+                        sans: ['Cairo', 'Tajawal', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace']
+                    },
+                    boxShadow: {
+                        'clinical': '0 4px 20px -2px rgba(0, 101, 145, 0.06), 0 2px 6px -1px rgba(0, 0, 0, 0.03)',
+                        'clinical-lg': '0 12px 32px -4px rgba(0, 101, 145, 0.10), 0 4px 12px -2px rgba(0, 0, 0, 0.04)',
+                        'glow-primary': '0 0 16px rgba(14, 165, 233, 0.35)',
+                        'glow-danger': '0 0 16px rgba(239, 68, 68, 0.45)',
+                        'glow-lift': '0 0 20px rgba(16, 185, 129, 0.4)'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Base and RTL Setup */
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #f6faff;
+            color: #171c20;
+            font-family: 'Cairo', 'Tajawal', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            direction: rtl;
+            overflow-x: hidden;
+        }
+
+        .font-brand {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+        }
+
+        .glass-panel-dark {
+            background: rgba(15, 23, 42, 0.94);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+        }
+
+        /* SVG Cross Section Styling & Animations */
+        .svg-container {
+            touch-action: none;
+            user-select: none;
+            display: block;
+            width: 100%;
+            height: auto;
+            max-height: 100%;
+        }
+
+        .pulse-artery-ring {
+            animation: arteryPulse 1.8s infinite ease-in-out;
+            transform-origin: 0px 0px;
+        }
+
+        @keyframes arteryPulse {
+            0%, 100% { transform: scale(1); opacity: 0.75; }
+            50% { transform: scale(1.15); opacity: 1; filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.9)); }
+        }
+
+        .pulse-glow {
+            animation: pulseGlow 2s infinite ease-in-out;
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 0.35; }
+            50% { opacity: 0.85; }
+        }
+
+        /* Needle transitions */
+        #needleGroup {
+            transition: transform 0.12s cubic-bezier(0.2, 0.8, 0.2, 1);
+            cursor: grab;
+        }
+
+        #needleGroup.dragging {
+            cursor: grabbing;
+            transition: none;
+        }
+
+        /* Filler Bolus expansion */
+        .bolus-bubble {
+            transform-origin: center;
+            animation: bolusPop 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes bolusPop {
+            0% { transform: scale(0.2); opacity: 0.4; }
+            100% { transform: scale(1); opacity: 0.92; }
+        }
+
+        /* Tissue Deformation Ring Animation */
+        .tissue-deformation-ring {
+            animation: tissueExpand 2.2s infinite ease-out;
+        }
+
+        @keyframes tissueExpand {
+            0% { r: 12px; opacity: 0.85; stroke-width: 2px; }
+            50% { opacity: 0.4; }
+            100% { r: 36px; opacity: 0; stroke-width: 0.5px; }
+        }
+
+        /* Skin Elevation Lift Effect */
+        .skin-lift-glow {
+            animation: liftGlow 2.5s infinite ease-in-out;
+        }
+
+        @keyframes liftGlow {
+            0%, 100% { opacity: 0.45; stroke-width: 2.5; }
+            50% { opacity: 0.95; stroke-width: 4; }
+        }
+
+        /* Slider Custom Styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: #e2e8f0;
+            border-radius: 9999px;
+            height: 7px;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #006591;
+            border: 2.5px solid #ffffff;
+            box-shadow: 0 2px 6px rgba(0, 101, 145, 0.3);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+            background: #0ea5e9;
+        }
+
+        /* Tabs & Technique Buttons Styling */
+        .tab-btn.active {
+            color: #006591;
+            border-bottom: 2.5px solid #006591;
+            font-weight: 800;
+            background-color: rgba(201, 230, 255, 0.3);
+        }
+
+        .tech-btn.active, .inst-btn.active, .dose-btn.active {
+            background-color: #006591;
+            color: #ffffff;
+            border-color: #006591;
+            box-shadow: 0 2px 8px rgba(0, 101, 145, 0.25);
+        }
+
+        /* Injection Result Card Slide Animation */
+        @keyframes resultPop {
+            0% { transform: translateY(16px) scale(0.97); opacity: 0; }
+            100% { transform: translateY(0) scale(1); opacity: 1; }
+        }
+
+        .result-card-animate {
+            animation: resultPop 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        /* Material Symbols helper */
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 22;
+            vertical-align: middle;
+        }
+        .material-symbols-outlined.filled {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 22;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col bg-[#f6faff] text-[#171c20] selection:bg-primary-container selection:text-primary-dark">
+
+    <!-- Top Navigation Header (Fully Responsive) -->
+    <header class="sticky top-0 z-50 w-full bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-3 sm:px-6 py-2.5 sm:py-3 shadow-sm">
+        <div class="max-w-7xl mx-auto flex items-center justify-between gap-2">
+            
+            <!-- Brand Logo: KERA in English -->
+            <div class="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-primary to-primary-light flex items-center justify-center text-white shadow-md shadow-primary/25">
+                    <span class="material-symbols-outlined filled text-xl sm:text-2xl">science</span>
+                </div>
+                <div>
+                    <div class="flex items-center gap-1.5 sm:gap-2">
+                        <h1 class="text-lg sm:text-2xl font-black tracking-wider text-slate-900 font-brand leading-none">KERA <span class="text-primary font-bold text-sm sm:text-lg">Inject Lab</span></h1>
+                        <span class="text-[10px] sm:text-[11px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">2D</span>
+                    </div>
+                    <p class="text-[11px] text-slate-500 hidden md:block mt-0.5">محاكاة مقطع الأنسجة التشريحية ثلاثي المستويات • دراسة الزوايا والتقنيات والآثار السريرية</p>
+                </div>
+            </div>
+
+            <!-- Header Action Controls -->
+            <div class="flex items-center gap-1.5 sm:gap-2.5">
+                <!-- Open Detailed Report Button -->
+                <button id="openFullReportBtn" title="فتح التقرير السريري الطبي الشامل الموثق" class="px-2.5 sm:px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/30 text-primary hover:bg-primary hover:text-white transition-all flex items-center gap-1 text-xs font-bold shadow-sm">
+                    <span class="material-symbols-outlined text-[17px]">summarize</span>
+                    <span class="hidden sm:inline">التقرير الطبي</span>
+                </button>
+
+                <!-- Toggle Before / After Contour Mode -->
+                <button id="toggleBeforeAfterBtn" title="مقارنة النسيج قبل وبعد الحقن" class="px-2 sm:px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:text-primary hover:bg-slate-50 transition-colors flex items-center gap-1 text-xs font-bold shadow-sm">
+                    <span class="material-symbols-outlined text-[17px] text-primary">compare</span>
+                    <span class="hidden md:inline" id="beforeAfterText">المظهر بعد الحقن</span>
+                </button>
+
+                <!-- Audio Synthesis Toggle -->
+                <button id="audioToggleBtn" title="تفعيل / كتم المؤثرات الصوتية" class="p-1.5 sm:px-2 sm:py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:text-primary hover:bg-slate-50 transition-colors flex items-center gap-1 text-xs font-medium">
+                    <span class="material-symbols-outlined text-[17px]" id="audioIcon">volume_up</span>
+                    <span class="hidden lg:inline" id="audioText">الصوت</span>
+                </button>
+
+                <!-- Live Depth Badge -->
+                <div class="glass-panel px-2.5 sm:px-3 py-1.5 rounded-full border border-slate-200 flex items-center gap-1.5 shadow-sm">
+                    <span class="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500 animate-pulse" id="globalStatusDot"></span>
+                    <span class="text-xs font-bold text-slate-700 font-mono tracking-tight" id="liveDepthHeader">2.4 مم</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-2.5 sm:p-4 lg:p-6 flex flex-col lg:flex-row gap-3.5 sm:gap-5 lg:gap-6">
+        
+        <!-- ========================================== -->
+        <!-- TOP/LEFT: SIMULATION CANVAS (المقطع التشريحي) -->
+        <!-- ========================================== -->
+        <section class="flex-1 lg:flex-[1.35] flex flex-col bg-white rounded-2xl border border-slate-200/90 shadow-clinical overflow-hidden">
+            
+            <!-- Simulator Canvas Header Toolbar -->
+            <div class="px-3 sm:px-4 py-2.5 border-b border-slate-100 bg-slate-50/80 flex items-center justify-between gap-2">
+                <div class="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                    <span class="material-symbols-outlined text-primary text-[18px]">layers</span>
+                    <span>المقطع التشريحي ومعايرة الأنسجة</span>
+                </div>
+
+                <div class="flex items-center gap-1 text-[10.5px] font-semibold text-slate-600 bg-white px-2 py-0.5 rounded-md border border-slate-200 shadow-sm">
+                    <span class="material-symbols-outlined text-[14px] text-primary">touch_app</span>
+                    <span class="hidden xs:inline">اسحب الإبرة داخل المقطع أو اختر الطبقة والزاوية</span>
+                    <span class="xs:hidden">اسحب الإبرة</span>
+                </div>
+            </div>
+
+            <!-- SVG Visualizer Viewport with Responsive Aspect Ratio -->
+            <div class="relative w-full bg-slate-900 flex items-center justify-center p-0 select-none overflow-hidden aspect-[1024/571]" id="simulatorViewport">
+                
+                <!-- SVG Canvas (1024 x 571 matching exact image aspect ratio) -->
+                <svg id="crossSectionSvg" viewBox="0 0 1024 571" preserveAspectRatio="xMidYMid meet" class="w-full h-full svg-container" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <!-- Filler Gel Droplet Radial Gradient -->
+                        <radialGradient id="fillerGelGrad" cx="35%" cy="30%" r="70%">
+                            <stop offset="0%" stop-color="#e0f2fe" stop-opacity="0.95" />
+                            <stop offset="40%" stop-color="#38bdf8" stop-opacity="0.88" />
+                            <stop offset="85%" stop-color="#0284c7" stop-opacity="0.80" />
+                            <stop offset="100%" stop-color="#0369a1" stop-opacity="0.70" />
+                        </radialGradient>
+
+                        <!-- Vascular Hazard Bolus Gradient -->
+                        <radialGradient id="arteryGrad" cx="40%" cy="40%" r="60%">
+                            <stop offset="0%" stop-color="#ff4d4d" />
+                            <stop offset="70%" stop-color="#dc2626" />
+                            <stop offset="100%" stop-color="#7f1d1d" />
+                        </radialGradient>
+
+                        <!-- Tissue Lift Elevation Gradient -->
+                        <linearGradient id="liftGlowGrad" x1="0%" y1="100%" x2="0%" y2="0%">
+                            <stop offset="0%" stop-color="#10b981" stop-opacity="0.65" />
+                            <stop offset="100%" stop-color="#34d399" stop-opacity="0.0" />
+                        </linearGradient>
+
+                        <!-- Gel Glow Filter -->
+                        <filter id="gelGlow" x="-30%" y="-30%" width="160%" height="160%">
+                            <feGaussianBlur stdDeviation="4" result="blur" />
+                            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                        </filter>
+                    </defs>
+
+                    <!-- ============================================== -->
+                    <!-- 1. ANATOMICAL CROSS-SECTION BACKGROUND IMAGE -->
+                    <!-- ============================================== -->
+                    <image id="anatomyBgImage" href="anatomy.jpg" x="0" y="0" width="1024" height="571" preserveAspectRatio="none" />
+
+                    <!-- Dynamic Skin Surface Elevation Lift Curve (البروز والرفع الحجمي لسطح الجلد) -->
+                    <g id="skinLiftGroup" opacity="0">
+                        <path id="skinLiftPath" d="M 120 55 Q 480 55, 840 55" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round" class="skin-lift-glow" />
+                        <path id="skinLiftFill" d="M 120 55 Q 480 55, 840 55 L 840 55 L 120 55 Z" fill="url(#liftGlowGrad)" opacity="0.4" />
+                    </g>
+
+                    <!-- ============================================== -->
+                    <!-- 2. VASCULAR DANGER RETICLE (الشريان الوجهي على الصورة) -->
+                    <!-- Coordinates: X=369, Y=237 inside Subcutaneous layer -->
+                    <!-- ============================================== -->
+                    <g id="vascularDangerReticle" transform="translate(369, 237)">
+                        <!-- Pulsing Warning Ring -->
+                        <circle cx="0" cy="0" r="36" fill="#ef4444" fill-opacity="0.12" stroke="#ef4444" stroke-width="1.8" stroke-dasharray="4,4" class="pulse-glow" />
+                        <circle cx="0" cy="0" r="20" fill="none" stroke="#ef4444" stroke-width="1.5" opacity="0.55" class="pulse-artery-ring" />
+                        
+                        <!-- Floating Vascular Label in Arabic -->
+                        <g transform="translate(0, -38)">
+                            <rect x="-55" y="-10" width="110" height="20" rx="5" fill="#0f172a" fill-opacity="0.90" stroke="#ef4444" stroke-width="0.8" />
+                            <text x="0" y="3.5" font-size="9.5" font-weight="700" fill="#fca5a5" text-anchor="middle" font-family="Cairo, sans-serif">⚠ الشريان الوجهي (خطر)</text>
+                        </g>
+                    </g>
+
+                    <!-- ============================================== -->
+                    <!-- 3. CALIBRATED DEPTH RULER ON LEFT (مقياس العمق) -->
+                    <!-- ============================================== -->
+                    <g id="depthRulerGroup">
+                        <!-- Translucent Dark Ruler Strip -->
+                        <rect x="12" y="48" width="58" height="475" rx="8" fill="#0f172a" fill-opacity="0.88" stroke="#334155" stroke-width="1" />
+                        
+                        <!-- Metric Graduations & Labels -->
+                        <!-- 0.0 mm (Skin Surface Y≈55) -->
+                        <line x1="54" y1="55" x2="66" y2="55" stroke="#38bdf8" stroke-width="2.5" />
+                        <text x="47" y="59" font-size="11" font-weight="800" fill="#e2e8f0" text-anchor="end" font-family="JetBrains Mono">0.0</text>
+                        
+                        <!-- 1.0 mm (Y≈130) -->
+                        <line x1="57" y1="130" x2="66" y2="130" stroke="#94a3b8" stroke-width="1.5" />
+                        <text x="50" y="134" font-size="9.5" font-weight="600" fill="#94a3b8" text-anchor="end" font-family="JetBrains Mono">1.0</text>
+                        
+                        <!-- 2.0 mm (Y≈220) -->
+                        <line x1="54" y1="220" x2="66" y2="220" stroke="#38bdf8" stroke-width="2" />
+                        <text x="47" y="224" font-size="11" font-weight="800" fill="#e2e8f0" text-anchor="end" font-family="JetBrains Mono">2.0</text>
+                        
+                        <!-- 3.0 mm (Y≈265) -->
+                        <line x1="57" y1="265" x2="66" y2="265" stroke="#94a3b8" stroke-width="1.5" />
+                        <text x="50" y="269" font-size="9.5" font-weight="600" fill="#94a3b8" text-anchor="end" font-family="JetBrains Mono">3.0</text>
+                        
+                        <!-- 4.0 mm (Muscle Y≈310) -->
+                        <line x1="54" y1="310" x2="66" y2="310" stroke="#ef4444" stroke-width="2.5" />
+                        <text x="47" y="314" font-size="11" font-weight="800" fill="#fca5a5" text-anchor="end" font-family="JetBrains Mono">4.0</text>
+                        
+                        <!-- 5.0 mm (Deep Fat Y≈365) -->
+                        <line x1="57" y1="365" x2="66" y2="365" stroke="#94a3b8" stroke-width="1.5" />
+                        <text x="50" y="369" font-size="9.5" font-weight="600" fill="#94a3b8" text-anchor="end" font-family="JetBrains Mono">5.0</text>
+                        
+                        <!-- 6.0 mm (Y≈415) -->
+                        <line x1="54" y1="415" x2="66" y2="415" stroke="#38bdf8" stroke-width="2" />
+                        <text x="47" y="419" font-size="11" font-weight="800" fill="#e2e8f0" text-anchor="end" font-family="JetBrains Mono">6.0</text>
+                        
+                        <!-- 7.0 mm (Bone Y≈462) -->
+                        <line x1="54" y1="462" x2="66" y2="462" stroke="#cbd5e1" stroke-width="2.5" />
+                        <text x="47" y="466" font-size="11" font-weight="800" fill="#cbd5e1" text-anchor="end" font-family="JetBrains Mono">7.0</text>
+                        
+                        <!-- 8.0 mm (Y≈510) -->
+                        <line x1="54" y1="510" x2="66" y2="510" stroke="#cbd5e1" stroke-width="2.5" />
+                        <text x="47" y="514" font-size="11" font-weight="800" fill="#cbd5e1" text-anchor="end" font-family="JetBrains Mono">8.0</text>
+
+                        <!-- Unit header in Arabic -->
+                        <text x="41" y="42" font-size="10" font-weight="800" fill="#38bdf8" text-anchor="middle" font-family="Cairo, sans-serif">العمق</text>
+
+                        <!-- Active Depth Pointer on Ruler -->
+                        <g id="rulerPointer" transform="translate(66, 235)">
+                            <polygon points="0,0 12,-6 12,6" fill="#0ea5e9" />
+                            <line x1="0" y1="0" x2="870" y2="0" stroke="#0ea5e9" stroke-width="1.5" stroke-dasharray="4,4" opacity="0.65" />
+                        </g>
+                    </g>
+
+                    <!-- ============================================== -->
+                    <!-- 4. ANATOMICAL LAYER BADGES ON RIGHT (مسميات الطبقات) -->
+                    <!-- ============================================== -->
+                    <g id="layerLabelsGroup">
+                        <!-- Intradermal (البشرة والأدمة) -->
+                        <g transform="translate(840, 115)">
+                            <rect x="-5" y="-14" width="175" height="32" rx="6" fill="#0f172a" fill-opacity="0.88" stroke="#0284c7" stroke-width="1" />
+                            <text x="82" y="2" font-size="11" font-weight="700" fill="#38bdf8" text-anchor="middle" font-family="Cairo, sans-serif">البشرة والأدمة (سطحي)</text>
+                            <text x="82" y="14" font-size="8.5" font-weight="600" fill="#cbd5e1" text-anchor="middle" font-family="JetBrains Mono">0.0 - 1.2 mm</text>
+                        </g>
+
+                        <!-- Subcutaneous Fat (الدهون تحت الجلد) -->
+                        <g transform="translate(840, 235)">
+                            <rect x="-5" y="-14" width="175" height="32" rx="6" fill="#0f172a" fill-opacity="0.88" stroke="#f59e0b" stroke-width="1" />
+                            <text x="82" y="2" font-size="11" font-weight="700" fill="#fbbf24" text-anchor="middle" font-family="Cairo, sans-serif">الدهون تحت الجلد</text>
+                            <text x="82" y="14" font-size="8.5" font-weight="600" fill="#cbd5e1" text-anchor="middle" font-family="JetBrains Mono">1.2 - 3.4 mm</text>
+                        </g>
+
+                        <!-- SMAS / Muscle Layer (العضلات والـ SMAS) -->
+                        <g transform="translate(840, 325)">
+                            <rect x="-5" y="-14" width="175" height="32" rx="6" fill="#0f172a" fill-opacity="0.88" stroke="#ef4444" stroke-width="1" />
+                            <text x="82" y="2" font-size="11" font-weight="700" fill="#f87171" text-anchor="middle" font-family="Cairo, sans-serif">طبقة العضلات (SMAS) ⚠</text>
+                            <text x="82" y="14" font-size="8.5" font-weight="600" fill="#fca5a5" text-anchor="middle" font-family="JetBrains Mono">3.4 - 5.0 mm</text>
+                        </g>
+
+                        <!-- Deep Fat Compartment (الدهون العميقة) -->
+                        <g transform="translate(840, 400)">
+                            <rect x="-5" y="-14" width="175" height="32" rx="6" fill="#0f172a" fill-opacity="0.88" stroke="#eab308" stroke-width="1" />
+                            <text x="82" y="2" font-size="11" font-weight="700" fill="#fde047" text-anchor="middle" font-family="Cairo, sans-serif">الدهون العميقة (دعم هيكلي)</text>
+                            <text x="82" y="14" font-size="8.5" font-weight="600" fill="#cbd5e1" text-anchor="middle" font-family="JetBrains Mono">5.0 - 6.5 mm</text>
+                        </g>
+
+                        <!-- Periosteum & Bone (السمحاق والعظم) -->
+                        <g transform="translate(840, 475)">
+                            <rect x="-5" y="-14" width="175" height="32" rx="6" fill="#0f172a" fill-opacity="0.88" stroke="#94a3b8" stroke-width="1" />
+                            <text x="82" y="2" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle" font-family="Cairo, sans-serif">السمحاق وعظم الجمجمة</text>
+                            <text x="82" y="14" font-size="8.5" font-weight="600" fill="#cbd5e1" text-anchor="middle" font-family="JetBrains Mono">6.5+ mm</text>
+                        </g>
+                    </g>
+
+                    <!-- ============================================== -->
+                    <!-- 5. FILLER BOLUS CONTAINER (Dynamic HA Gel Drops & Threads) -->
+                    <!-- ============================================== -->
+                    <g id="bolusesGroup">
+                        <!-- Boluses dynamically injected appear here -->
+                    </g>
+
+                    <!-- ============================================== -->
+                    <!-- 6. NEEDLE & SYRINGE ASSEMBLY (Interactive Element) -->
+                    <!-- ============================================== -->
+                    <g id="needleGroup" transform="translate(480, 235) rotate(-50)">
+                        
+                        <!-- Injection Gel Glow Flow Effect -->
+                        <g id="injectionFlash" opacity="0" filter="url(#gelGlow)">
+                            <circle cx="0" cy="0" r="10" fill="#38bdf8" opacity="0.95" />
+                            <circle cx="0" cy="0" r="18" fill="#0284c7" opacity="0.45" />
+                        </g>
+
+                        <!-- Needle Cannula Shaft (190px Stainless Steel Cannula) -->
+                        <line id="cannulaShaft" x1="0" y1="0" x2="0" y2="-185" stroke="#cbd5e1" stroke-width="3" stroke-linecap="round" />
+                        <line x1="-0.6" y1="0" x2="-0.6" y2="-185" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round" opacity="0.95" />
+                        
+                        <!-- Needle Tip Marker (Sharp Beveled vs Blunt Cannula) -->
+                        <g id="needleTipVisual">
+                            <polygon id="needleBevel" points="-3,-5 0,0 3,-5 0,-2" fill="#38bdf8" stroke="#0284c7" stroke-width="0.75" />
+                            <circle id="needleTipIndicator" cx="0" cy="0" r="3.5" fill="#0284c7" stroke="#ffffff" stroke-width="1.5" />
+                        </g>
+
+                        <!-- Syringe Hub (Luer Lock Mount with Gauge Color) -->
+                        <g transform="translate(0, 0)">
+                            <!-- Hub Cone -->
+                            <polygon points="-8,-185 8,-185 11,-205 -11,-205" fill="#0284c7" opacity="0.95" stroke="#004c6e" stroke-width="0.75" />
+                            <!-- Hub Collar -->
+                            <rect x="-12" y="-210" width="24" height="5" rx="1.5" fill="#0369a1" />
+                            
+                            <!-- Aspiration Flashback Window -->
+                            <rect id="hubFlashback" x="-5" y="-199" width="10" height="9" rx="2" fill="#e0f2fe" opacity="0.95" stroke="#004c6e" stroke-width="0.5" />
+                        </g>
+
+                        <!-- Syringe Barrel Body (1.0 mL BD Precision Style) -->
+                        <g transform="translate(0, 0)">
+                            <!-- Clear Outer Cylinder -->
+                            <rect x="-17" y="-355" width="34" height="145" rx="5" fill="rgba(241, 245, 249, 0.82)" stroke="#475569" stroke-width="1.8" />
+                            
+                            <!-- Filler Fluid in Barrel -->
+                            <rect id="barrelFluid" x="-14.5" y="-330" width="29" height="120" rx="2.5" fill="#38bdf8" fill-opacity="0.55" />
+
+                            <!-- Syringe Metric Graduations (0.0 to 1.0 mL) -->
+                            <line x1="-15" y1="-330" x2="-6" y2="-330" stroke="#0f172a" stroke-width="1.5" />
+                            <text x="-3" y="-327" font-size="7.5" font-weight="800" fill="#0f172a" font-family="JetBrains Mono">0.0</text>
+
+                            <line x1="-15" y1="-306" x2="-9" y2="-306" stroke="#64748b" stroke-width="1" />
+                            <line x1="-15" y1="-282" x2="-6" y2="-282" stroke="#0f172a" stroke-width="1.5" />
+                            <text x="-3" y="-279" font-size="7.5" font-weight="800" fill="#0f172a" font-family="JetBrains Mono">0.4</text>
+
+                            <line x1="-15" y1="-258" x2="-9" y2="-258" stroke="#64748b" stroke-width="1" />
+                            <line x1="-15" y1="-234" x2="-6" y2="-234" stroke="#0f172a" stroke-width="1.5" />
+                            <text x="-3" y="-231" font-size="7.5" font-weight="800" fill="#0f172a" font-family="JetBrains Mono">0.8</text>
+
+                            <line x1="-15" y1="-210" x2="-4" y2="-210" stroke="#006591" stroke-width="2" />
+                            <text x="-1" y="-207" font-size="8" font-weight="800" fill="#006591" font-family="JetBrains Mono">1.0</text>
+
+                            <!-- Syringe Flange Finger Grips at Top -->
+                            <path d="M -26 -355 L 26 -355 C 28 -355, 28 -362, 24 -362 L -24 -362 C -28 -362, -28 -355, -26 -355 Z" fill="#006591" />
+
+                            <!-- Syringe Rubber Stopper & Plunger Assembly -->
+                            <g id="plungerAssembly" transform="translate(0, 0)">
+                                <rect x="-14.5" y="-335" width="29" height="8" rx="2" fill="#0f172a" />
+                                <rect x="-12.5" y="-327" width="25" height="3" fill="#334155" />
+                                <rect x="-3" y="-415" width="6" height="85" fill="#0284c7" />
+                                <ellipse cx="0" cy="-415" rx="15" ry="4" fill="#006591" stroke="#ffffff" stroke-width="1.2" />
+                            </g>
+                        </g>
+
+                    </g>
+                </svg>
+
+                <!-- Floating Canvas HUD Overlay (Top-Left in RTL) -->
+                <div class="absolute top-2 left-2 sm:top-4 sm:left-4 glass-panel p-2 sm:p-3 rounded-xl border border-slate-200/90 shadow-clinical flex flex-col gap-1 min-w-[130px] sm:min-w-[155px] pointer-events-none z-10 text-right">
+                    <div class="flex items-center justify-between text-[10px] sm:text-[11px] text-slate-500 font-bold">
+                        <span>مستوى الأمان:</span>
+                        <span id="hudSafetyBadge" class="px-1.5 py-0.5 rounded text-[9.5px] sm:text-[10px] font-extrabold bg-emerald-100 text-emerald-800">مستوى آمن</span>
+                    </div>
+                    <div class="text-xs sm:text-sm font-bold text-slate-800 flex items-center justify-between" id="hudLayerName">
+                        الدهون تحت الجلد
+                    </div>
+                    <div class="flex items-center justify-between text-[11px] sm:text-xs text-slate-600 font-mono">
+                        <span class="font-sans text-[10px] sm:text-[11px]">العمق:</span>
+                        <span class="font-bold text-primary text-xs sm:text-sm" id="hudDepthVal">2.4 مم</span>
+                    </div>
+                </div>
+
+                <!-- Touch Drag Prompt / Quick Clear Button (Bottom-Right in RTL) -->
+                <div class="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 flex items-center gap-1.5 z-10">
+                    <button id="quickClearBolusBtn" title="مسح بولسات الفيلر المحقونة" class="glass-panel px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-slate-200 text-[11px] sm:text-xs font-bold text-slate-700 hover:text-red-600 hover:border-red-200 transition-all flex items-center gap-1 shadow-sm">
+                        <span class="material-symbols-outlined text-[15px]">ink_eraser</span>
+                        <span>مسح البولسات</span>
+                    </button>
+                </div>
+
+                <!-- ============================================== -->
+                <!-- LIVE INJECTION CLINICAL OUTCOME CARD (DRAWER POPUP) -->
+                <!-- ============================================== -->
+                <div id="liveInjectionResultCard" class="absolute bottom-2 left-2 right-2 sm:left-auto sm:right-3 sm:max-w-md glass-panel-dark text-white p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-sky-400/40 shadow-2xl z-30 hidden result-card-animate text-right">
+                    
+                    <!-- Result Card Header -->
+                    <div class="flex items-center justify-between border-b border-slate-700/80 pb-1.5 mb-2">
+                        <div class="flex items-center gap-1.5 sm:gap-2">
+                            <div class="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-primary flex items-center justify-center text-white flex-shrink-0">
+                                <span class="material-symbols-outlined text-[15px] sm:text-[17px]">biotech</span>
+                            </div>
+                            <div>
+                                <h4 class="text-[11.5px] sm:text-xs font-extrabold text-sky-300" id="resCardTitle">تقرير الحقنة السريرية (+0.10 مل)</h4>
+                                <span class="text-[9.5px] sm:text-[10px] text-slate-400 font-mono" id="resCardPlaneTag">الدهون تحت الجلد • 2.4 مم</span>
+                            </div>
+                        </div>
+                        <button id="closeLiveResultCardBtn" class="text-slate-400 hover:text-white p-1 rounded-md transition-colors">
+                            <span class="material-symbols-outlined text-[17px]">close</span>
+                        </button>
+                    </div>
+
+                    <!-- Dual Grid: Positive Outcomes vs Negative Risks -->
+                    <div class="grid grid-cols-2 gap-1.5 sm:gap-2 mb-2 text-[10.5px] sm:text-[11px]">
+                        
+                        <!-- Positive Clinical Outcomes (الإيجابيات والنتائج) -->
+                        <div class="p-2 sm:p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30">
+                            <div class="flex items-center gap-1 text-emerald-400 font-bold mb-0.5">
+                                <span class="material-symbols-outlined text-[13px]">trending_up</span>
+                                <span>النتائج الإيجابية</span>
+                            </div>
+                            <ul class="space-y-0.5 text-[10px] sm:text-[10.5px] text-slate-200" id="resCardPositiveList">
+                                <li>• رفع: <strong class="text-emerald-300 font-mono" id="resLiftVal">+0.2 مم</strong></li>
+                                <li>• اندماج: <strong class="text-emerald-300" id="resBioIntVal">92%</strong></li>
+                                <li>• ثبات: <strong class="text-emerald-300" id="resStabilityVal">مرتفع</strong></li>
+                            </ul>
+                        </div>
+
+                        <!-- Negative Risks & Adverse Events (السلبيات والمخاطر) -->
+                        <div class="p-2 sm:p-2.5 rounded-xl bg-red-950/40 border border-red-500/30">
+                            <div class="flex items-center gap-1 text-red-400 font-bold mb-0.5">
+                                <span class="material-symbols-outlined text-[13px]">warning</span>
+                                <span>المخاطر والسلبيات</span>
+                            </div>
+                            <ul class="space-y-0.5 text-[10px] sm:text-[10.5px] text-slate-200" id="resCardNegativeList">
+                                <li>• وعائي: <strong class="text-emerald-400 font-mono" id="resVascVal">8%</strong></li>
+                                <li>• تيندال: <strong class="text-emerald-400" id="resTyndallVal">0%</strong></li>
+                                <li>• تروية: <strong class="text-emerald-400" id="resBlanchVal">سليم</strong></li>
+                            </ul>
+                        </div>
+
+                    </div>
+
+                    <!-- Actionable Guidance & Antidote Notice -->
+                    <div class="p-1.5 sm:p-2 rounded-lg bg-slate-800/90 border border-slate-700 text-[10px] sm:text-[10.5px] flex items-center justify-between text-slate-300 gap-1.5">
+                        <span id="resCardAdviceText" class="truncate">💡 مساج ناعم لتوزيع الحواف وتجانس الجل.</span>
+                        <button id="viewModalFromCardBtn" class="text-sky-400 hover:text-sky-300 font-bold underline flex-shrink-0 text-[10px]">
+                            التفاصيل
+                        </button>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- Simulator Quick Stats Bar (2-col on Mobile, 4-col on Tablet/Desktop) -->
+            <div class="p-2 sm:p-3 bg-white border-t border-slate-100 grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+                <div class="p-1.5 sm:p-2 bg-slate-50/70 rounded-xl border border-slate-100">
+                    <span class="block text-[9.5px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-400">الحجم المحقون</span>
+                    <span class="text-xs sm:text-sm font-extrabold font-mono text-slate-800" id="statInjectedVol">0.00 / 1.00 <span class="text-[10px] font-normal text-slate-500 font-sans">مل</span></span>
+                </div>
+                <div class="p-1.5 sm:p-2 bg-slate-50/70 rounded-xl border border-slate-100">
+                    <span class="block text-[9.5px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-400">الزاوية والأداة</span>
+                    <span class="text-xs sm:text-sm font-extrabold font-mono text-slate-800" id="statAngle">40° (إبرة)</span>
+                </div>
+                <div class="p-1.5 sm:p-2 bg-slate-50/70 rounded-xl border border-slate-100">
+                    <span class="block text-[9.5px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-400">فحص الشفط</span>
+                    <span class="text-[11px] sm:text-xs font-extrabold text-slate-600 flex items-center justify-center gap-1 mt-0.5" id="statAspiration">
+                        <span class="w-2 h-2 rounded-full bg-slate-300"></span>
+                        <span>بانتظار الفحص</span>
+                    </span>
+                </div>
+                <div class="p-1.5 sm:p-2 bg-slate-50/70 rounded-xl border border-slate-100">
+                    <span class="block text-[9.5px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-400">الرفع والبروز</span>
+                    <span class="text-xs sm:text-sm font-extrabold font-mono text-emerald-600" id="statLiftProjection">+0.0 <span class="text-[10px] font-normal font-sans">مم</span></span>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- BOTTOM/RIGHT: CLINICAL CONTROLS & ADVANCED OPTIONS -->
+        <!-- ========================================== -->
+        <aside class="flex-1 lg:flex-[1.0] flex flex-col gap-3.5 sm:gap-4 lg:gap-5">
+            
+            <!-- 1. CLINICAL TECHNIQUES & INSTRUMENT SELECTION CARD (خيارات وتقنيات الحقن السريرية) -->
+            <div class="bg-white rounded-2xl p-3.5 sm:p-5 border border-slate-200/90 shadow-clinical">
+                <div class="flex items-center justify-between mb-2.5 sm:mb-3">
+                    <h2 class="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-primary text-[17px]">medical_services</span>
+                        <span>تقنية الحقن ونوع الأداة السريرية</span>
+                    </h2>
+                    <span class="text-[9.5px] sm:text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200" id="currentTechBadge">بولس نقطي</span>
+                </div>
+
+                <!-- Injection Techniques Selector (4 Modes) -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mb-3" id="techSelectorGroup">
+                    <button class="tech-btn active p-2 rounded-xl border border-slate-200 text-center text-xs font-bold transition-all flex flex-col items-center gap-1 hover:border-primary" data-tech="bolus">
+                        <span class="material-symbols-outlined text-[18px]">radio_button_checked</span>
+                        <span class="text-[10.5px]">بولس نقطي</span>
+                    </button>
+                    <button class="tech-btn p-2 rounded-xl border border-slate-200 text-center text-xs font-bold transition-all flex flex-col items-center gap-1 hover:border-primary text-slate-700 bg-white" data-tech="linear">
+                        <span class="material-symbols-outlined text-[18px]">horizontal_rule</span>
+                        <span class="text-[10.5px]">خطي تراجعي</span>
+                    </button>
+                    <button class="tech-btn p-2 rounded-xl border border-slate-200 text-center text-xs font-bold transition-all flex flex-col items-center gap-1 hover:border-primary text-slate-700 bg-white" data-tech="fanning">
+                        <span class="material-symbols-outlined text-[18px]">filter_vintage</span>
+                        <span class="text-[10.5px]">مروحي نسيجي</span>
+                    </button>
+                    <button class="tech-btn p-2 rounded-xl border border-slate-200 text-center text-xs font-bold transition-all flex flex-col items-center gap-1 hover:border-primary text-slate-700 bg-white" data-tech="micro">
+                        <span class="material-symbols-outlined text-[18px]">grain</span>
+                        <span class="text-[10.5px]">تقطير ميكروي</span>
+                    </button>
+                </div>
+
+                <!-- Instrument & Dosing Step Row -->
+                <div class="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100">
+                    
+                    <!-- Instrument Type: Needle vs Cannula -->
+                    <div>
+                        <span class="block text-[10px] font-bold text-slate-400 mb-1">نوع الأداة (Instrument)</span>
+                        <div class="grid grid-cols-2 gap-1" id="instSelectorGroup">
+                            <button class="inst-btn active py-1.5 px-2 rounded-lg border text-[10.5px] font-bold transition-all flex items-center justify-center gap-1" data-inst="needle">
+                                <span class="material-symbols-outlined text-[14px]">edit</span>
+                                <span>إبرة حادة</span>
+                            </button>
+                            <button class="inst-btn py-1.5 px-2 rounded-lg border border-slate-200 text-slate-700 bg-white text-[10.5px] font-bold transition-all flex items-center justify-center gap-1" data-inst="cannula">
+                                <span class="material-symbols-outlined text-[14px]">remove</span>
+                                <span>كانيولا كليلة</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Dose Step: 0.05 / 0.10 / 0.20 mL -->
+                    <div>
+                        <span class="block text-[10px] font-bold text-slate-400 mb-1">حجم الجرعة / الضغطة</span>
+                        <div class="grid grid-cols-3 gap-1" id="doseSelectorGroup">
+                            <button class="dose-btn py-1.5 px-1 rounded-lg border border-slate-200 text-slate-700 bg-white text-[10.5px] font-mono font-bold transition-all text-center" data-dose="0.05">0.05</button>
+                            <button class="dose-btn active py-1.5 px-1 rounded-lg border text-[10.5px] font-mono font-bold transition-all text-center" data-dose="0.10">0.10</button>
+                            <button class="dose-btn py-1.5 px-1 rounded-lg border border-slate-200 text-slate-700 bg-white text-[10.5px] font-mono font-bold transition-all text-center" data-dose="0.20">0.20</button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- 2. Target Layer Preset Selector Card -->
+            <div class="bg-white rounded-2xl p-3.5 sm:p-5 border border-slate-200/90 shadow-clinical">
+                <div class="flex items-center justify-between mb-2.5 sm:mb-3">
+                    <h2 class="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-primary text-[17px]">target</span>
+                        <span>الطبقة المستهدفة للحقن السريري</span>
+                    </h2>
+                    <span class="text-[9.5px] sm:text-[10px] font-bold text-primary px-2 py-0.5 rounded-full bg-primary/10">انزلاق تلقائي</span>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-2" id="layerRadioGroup">
+                    
+                    <!-- Intradermal Option -->
+                    <label class="layer-radio-card flex items-center justify-between p-2.5 sm:p-3 rounded-xl border border-slate-200 cursor-pointer hover:border-primary/60 hover:bg-slate-50/70 transition-all group" data-layer="intradermal" data-depth="0.8" data-angle="15">
+                        <div class="flex items-center gap-2 sm:gap-3">
+                            <input type="radio" name="layerPreset" value="intradermal" class="text-primary focus:ring-primary h-3.5 w-3.5 sm:h-4 sm:w-4 border-slate-300">
+                            <div>
+                                <span class="block text-xs sm:text-sm font-bold text-slate-800 group-hover:text-primary transition-colors">حقن سطحي (داخل الأدمة)</span>
+                                <span class="block text-[10px] sm:text-[11px] text-slate-400">الخطوط الدقيقة والنضارة (10°-15°)</span>
+                            </div>
+                        </div>
+                        <span class="text-[10.5px] sm:text-xs font-mono font-bold text-slate-600 bg-slate-100 px-1.5 sm:px-2 py-0.5 rounded">0.1 - 1.2 مم</span>
+                    </label>
+
+                    <!-- Subcutaneous Option (Default Active) -->
+                    <label class="layer-radio-card flex items-center justify-between p-2.5 sm:p-3 rounded-xl border-2 border-primary bg-primary-surface cursor-pointer transition-all group" data-layer="subcutaneous" data-depth="2.4" data-angle="40">
+                        <div class="flex items-center gap-2 sm:gap-3">
+                            <input type="radio" name="layerPreset" value="subcutaneous" checked class="text-primary focus:ring-primary h-3.5 w-3.5 sm:h-4 sm:w-4 border-slate-300">
+                            <div>
+                                <span class="block text-xs sm:text-sm font-bold text-primary">حقن تحت الجلد (Sub-Q)</span>
+                                <span class="block text-[10px] sm:text-[11px] text-slate-500">استعادة الحجم وتعبئة الملامح (30°-45°)</span>
+                            </div>
+                        </div>
+                        <span class="text-[10.5px] sm:text-xs font-mono font-bold text-primary bg-primary/10 px-1.5 sm:px-2 py-0.5 rounded">1.2 - 3.4 مم</span>
+                    </label>
+
+                    <!-- Supraperiosteal Option -->
+                    <label class="layer-radio-card flex items-center justify-between p-2.5 sm:p-3 rounded-xl border border-slate-200 cursor-pointer hover:border-primary/60 hover:bg-slate-50/70 transition-all group" data-layer="supraperiosteal" data-depth="7.2" data-angle="90">
+                        <div class="flex items-center gap-2 sm:gap-3">
+                            <input type="radio" name="layerPreset" value="supraperiosteal" class="text-primary focus:ring-primary h-3.5 w-3.5 sm:h-4 sm:w-4 border-slate-300">
+                            <div>
+                                <span class="block text-xs sm:text-sm font-bold text-slate-800 group-hover:text-primary transition-colors">فوق السمحاق العظمي (Bone)</span>
+                                <span class="block text-[10px] sm:text-[11px] text-slate-400">رفع هيكلي عميق عمودي (90° Touch Bone)</span>
+                            </div>
+                        </div>
+                        <span class="text-[10.5px] sm:text-xs font-mono font-bold text-slate-600 bg-slate-100 px-1.5 sm:px-2 py-0.5 rounded">6.5+ مم</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- 3. KINEMATICS & DYNAMIC ANGLE-LAYER BIOMECHANICAL ASSESSMENT -->
+            <div class="bg-white rounded-2xl p-3.5 sm:p-5 border border-slate-200/90 shadow-clinical">
+                <div class="flex items-center justify-between mb-2.5 sm:mb-3">
+                    <h3 class="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-primary text-[17px]">tune</span>
+                        <span>معايرة العمق وزاوية الإبرة السريرية</span>
+                    </h3>
+                    <span id="angleComplianceBadge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">توافق مثالي (100%)</span>
+                </div>
+
+                <div class="space-y-3 sm:space-y-3.5">
+                    <!-- Depth Slider -->
+                    <div>
+                        <div class="flex justify-between items-center text-xs font-bold mb-1">
+                            <span class="text-slate-700">عمق دخول الأداة</span>
+                            <span class="font-mono text-primary font-bold text-xs sm:text-sm" id="depthSliderValue">2.4 مم</span>
+                        </div>
+                        <input type="range" id="depthSlider" min="0.0" max="8.0" step="0.1" value="2.4" class="w-full">
+                    </div>
+
+                    <!-- Angle Slider -->
+                    <div>
+                        <div class="flex justify-between items-center text-xs font-bold mb-1">
+                            <span class="text-slate-700">زاوية الحقن السريرية (Needle Angle)</span>
+                            <span class="font-mono text-primary font-bold text-xs sm:text-sm" id="angleSliderValue">40°</span>
+                        </div>
+                        <input type="range" id="angleSlider" min="10" max="90" step="5" value="40" class="w-full">
+                        <div class="flex justify-between text-[9.5px] sm:text-[10px] text-slate-400 mt-1">
+                            <span>10° (مماسي سطحي)</span>
+                            <span>45° (قياسي للأنسجة)</span>
+                            <span>90° (عمودي على العظم)</span>
+                        </div>
+                    </div>
+
+                    <!-- Live Angle-Depth Biomechanical Analysis Card -->
+                    <div id="angleLayerAnalysisBox" class="p-2.5 sm:p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs transition-all flex items-start gap-2">
+                        <span class="material-symbols-outlined text-[17px] text-primary mt-0.5 flex-shrink-0" id="angleAnalysisIcon">check_circle</span>
+                        <div>
+                            <span class="font-bold block text-[11.5px] text-slate-800" id="angleAnalysisTitle">توافق زاوي مثالي لطبقة الدهون تحت الجلد</span>
+                            <p class="text-[10.5px] text-slate-600 leading-relaxed mt-0.5" id="angleAnalysisDesc">
+                                الزاوية الحالية (40°) تسمح بمسار انسيابي موازي للأنسجة الرخوة، مما يضمن توزيعاً متجانساً للجل ويمنع اختراق الـ SMAS غير المقصود.
+                            </p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- 4. MULTI-TAB CLINICAL ASSESSMENT, OUTCOMES & COMPLICATIONS CARD -->
+            <div class="bg-white rounded-2xl border border-slate-200/90 shadow-clinical flex-1 flex flex-col overflow-hidden" id="assessmentCard">
+                
+                <!-- Tab Navigation Headers -->
+                <div class="flex border-b border-slate-200 bg-slate-50/70 text-[11px] sm:text-xs font-bold">
+                    <button class="tab-btn active flex-1 py-2.5 sm:py-3 px-1 sm:px-2 flex items-center justify-center gap-1 transition-all text-slate-700" data-tab="tab-assessment">
+                        <span class="material-symbols-outlined text-[16px] sm:text-[17px]">clinical_notes</span>
+                        <span class="truncate">التقييم والريولوجيا</span>
+                    </button>
+                    <button class="tab-btn flex-1 py-2.5 sm:py-3 px-1 sm:px-2 flex items-center justify-center gap-1 transition-all text-slate-500 hover:text-slate-800" data-tab="tab-outcomes">
+                        <span class="material-symbols-outlined text-[16px] sm:text-[17px]">auto_graph</span>
+                        <span class="truncate">الآثار والنتائج</span>
+                    </button>
+                    <button class="tab-btn flex-1 py-2.5 sm:py-3 px-1 sm:px-2 flex items-center justify-center gap-1 transition-all text-slate-500 hover:text-slate-800" data-tab="tab-complications">
+                        <span class="material-symbols-outlined text-[16px] sm:text-[17px]">emergency</span>
+                        <span class="truncate">المضاعفات والأمان</span>
+                    </button>
+                </div>
+
+                <!-- Tab 1: Live Clinical Assessment & Rheology -->
+                <div id="tab-assessment" class="tab-content p-3.5 sm:p-5 flex-1 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-start justify-between gap-2 mb-2.5 sm:mb-3">
+                            <div>
+                                <h3 class="text-xs font-extrabold text-slate-700 flex items-center gap-1.5">
+                                    <span>تحليل النسيج وخصائص الجل الموصى بها</span>
+                                </h3>
+                                <p class="text-[10px] sm:text-[11px] text-slate-400 mt-0.5" id="assessmentSubtitle">مطابقة ريولوجية فورية حسب العمق والزاوية</p>
+                            </div>
+                            <span id="assessmentStatusBadge" class="inline-flex items-center gap-1 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10.5px] sm:text-xs font-bold shadow-sm flex-shrink-0">
+                                <span class="material-symbols-outlined text-[15px] text-emerald-600">check_circle</span>
+                                <span>آمن ومثالي</span>
+                            </span>
+                        </div>
+
+                        <!-- Clinical Alert Box -->
+                        <div id="assessmentAlertBox" class="p-2.5 sm:p-3 rounded-xl bg-emerald-50/80 border border-emerald-200 text-xs text-emerald-950 mb-3 transition-all flex items-start gap-2">
+                            <span class="material-symbols-outlined text-[18px] text-emerald-600 mt-0.5 flex-shrink-0" id="alertIcon">verified</span>
+                            <div>
+                                <span class="font-bold block text-xs sm:text-[13px]" id="alertTitle">مستوى الدهون تحت الجلد (Sub-Q Safe Zone)</span>
+                                <span class="text-[10.5px] sm:text-[11px] text-slate-600 leading-relaxed block mt-0.5" id="alertDesc">المستوى المثالي لتعويض الحجم المفقود وتنسيق الثنايا الأنفية الشفوية. خطر وعائي منخفض مع إمكانية التوزيع المتجانس.</span>
+                            </div>
+                        </div>
+
+                        <!-- Medical Metrics Grid -->
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <div class="p-2.5 bg-slate-50/80 rounded-xl border border-slate-100">
+                                <span class="block text-[9.5px] sm:text-[10px] font-bold text-slate-400">العمق الفعلي</span>
+                                <span class="text-sm sm:text-base font-extrabold font-mono text-slate-800" id="cardDepthDisplay">2.4 <span class="text-[10px] sm:text-xs font-normal text-slate-500 font-sans">مم</span></span>
+                            </div>
+                            <div class="p-2.5 bg-slate-50/80 rounded-xl border border-slate-100">
+                                <span class="block text-[9.5px] sm:text-[10px] font-bold text-slate-400">مرونة الجل (G')</span>
+                                <span class="text-xs sm:text-sm font-extrabold text-primary font-mono" id="cardGPrimeDisplay">320 Pa (Med)</span>
+                            </div>
+                            <div class="p-2.5 bg-slate-50/80 rounded-xl border border-slate-100">
+                                <span class="block text-[9.5px] sm:text-[10px] font-bold text-slate-400">الأداة والمقاس</span>
+                                <span class="text-xs sm:text-base font-extrabold font-mono text-slate-800" id="cardGaugeDisplay">27G / 25G</span>
+                            </div>
+                            <div class="p-2.5 bg-slate-50/80 rounded-xl border border-slate-100">
+                                <span class="block text-[9.5px] sm:text-[10px] font-bold text-slate-400">تماسك وتركيز الجل</span>
+                                <span class="text-[11px] sm:text-xs font-extrabold text-slate-800 leading-tight block mt-0.5" id="cardCohesivityDisplay">High Cohesive (24 mg/mL)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Syringe Reservoir Mini Bar -->
+                    <div class="mt-1 pt-2.5 border-t border-slate-100">
+                        <div class="flex justify-between items-center text-[11px] text-slate-500 mb-1">
+                            <span class="font-bold">سعة المحقنة المتبقية</span>
+                            <span class="font-mono font-bold text-slate-700" id="syringeBarLabel">1.00 مل متبقي</span>
+                        </div>
+                        <div class="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+                            <div id="syringeProgressBar" class="h-full bg-gradient-to-l from-primary to-primary-light transition-all duration-200" style="width: 100%;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 2: Post-Injection Results & Outcomes (الآثار والنتائج) -->
+                <div id="tab-outcomes" class="tab-content hidden p-3.5 sm:p-5 flex-1 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-2.5 sm:mb-3">
+                            <div>
+                                <h3 class="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                                    <span class="material-symbols-outlined text-emerald-600 text-[17px]">verified_user</span>
+                                    <span>تقرير النتيجة الحجمية والآثار بعد الحقن</span>
+                                </h3>
+                                <p class="text-[10px] sm:text-[11px] text-slate-400 mt-0.5">توقعات استعادة الحجم والجدول الزمني للتعافي</p>
+                            </div>
+                            <span id="outcomeRatingBadge" class="px-2 sm:px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10.5px] sm:text-xs font-bold">
+                                نتيجة ممتازة
+                            </span>
+                        </div>
+
+                        <!-- Outcomes Metrics -->
+                        <div class="space-y-2.5 mb-3">
+                            <div class="p-2.5 sm:p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                <div class="flex justify-between items-center text-xs mb-1">
+                                    <span class="font-bold text-slate-700">معدل الامتلاء والرفع (Lift Score)</span>
+                                    <span class="font-mono font-bold text-emerald-600" id="outcomeLiftScore">0%</span>
+                                </div>
+                                <div class="w-full h-2 rounded-full bg-slate-200 overflow-hidden">
+                                    <div id="outcomeLiftBar" class="h-full bg-gradient-to-l from-emerald-500 to-teal-400 transition-all duration-300" style="width: 0%;"></div>
+                                </div>
+                                <p class="text-[10.5px] sm:text-[11px] text-slate-500 mt-1" id="outcomeLiftDesc">لم يتم حقن أي فيلر بعد. اضغط على "حقن بولس" لتوليد التأثير الحجمي.</p>
+                            </div>
+
+                            <div class="p-2.5 sm:p-3 bg-primary-surface rounded-xl border border-primary/20 text-xs">
+                                <div class="flex items-center gap-1.5 mb-0.5 text-primary-dark font-bold">
+                                    <span class="material-symbols-outlined text-[17px] text-primary">flare</span>
+                                    <span id="forecastTitle">التوقع الجمالي للمنطقة المحقونة</span>
+                                </div>
+                                <p class="text-[10.5px] sm:text-[11px] text-slate-600 leading-relaxed" id="forecastDesc">
+                                    الحقن في الطبقة المحددة يمنح امتلاءً ناعماً وتصحيحاً للملامح دون تكتلات سطحية.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Recovery & Longevity Timeline -->
+                        <div class="border-t border-slate-100 pt-2">
+                            <span class="block text-[9.5px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">مراحل استقرار الفيلر والتعافي (Timeline)</span>
+                            <div class="grid grid-cols-3 gap-1.5 text-center text-[9.5px] sm:text-[10px]">
+                                <div class="p-1.5 sm:p-2 rounded-lg bg-slate-50 border border-slate-100">
+                                    <span class="block font-bold text-slate-700">فوري</span>
+                                    <span class="text-slate-400">بروز أولي</span>
+                                </div>
+                                <div class="p-1.5 sm:p-2 rounded-lg bg-slate-50 border border-slate-100">
+                                    <span class="block font-bold text-slate-700">48 ساعة</span>
+                                    <span class="text-slate-400">ترطيب جزيئي</span>
+                                </div>
+                                <div class="p-1.5 sm:p-2 rounded-lg bg-slate-50 border border-slate-100">
+                                    <span class="block font-bold text-slate-700">أسبوعين</span>
+                                    <span class="text-emerald-600 font-bold">تكامل نسيجي</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-2 text-center text-[10.5px] sm:text-[11px] text-slate-400 font-mono">
+                        مدة بقاء الفيلر المتوقعة: <strong class="text-primary font-bold" id="longevityText">12 - 18 شهراً</strong>
+                    </div>
+                </div>
+
+                <!-- Tab 3: Potential Complications & Safety Protocol -->
+                <div id="tab-complications" class="tab-content hidden p-3.5 sm:p-5 flex-1 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-2.5 sm:mb-3">
+                            <div>
+                                <h3 class="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                                    <span class="material-symbols-outlined text-danger text-[17px]">security</span>
+                                    <span>تحليل المضاعفات المحتملة وبروتوكول الطوارئ</span>
+                                </h3>
+                                <p class="text-[10px] sm:text-[11px] text-slate-400 mt-0.5">تقييم المخاطر السريرية وإجراءات التدخل الفوري</p>
+                            </div>
+                            <span id="riskIndexBadge" class="px-2 sm:px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10.5px] sm:text-xs font-bold">
+                                خطر منخفض (Safe)
+                            </span>
+                        </div>
+
+                        <!-- Complications Checklist -->
+                        <div class="space-y-2 mb-3">
+                            <div class="p-2 sm:p-2.5 rounded-xl border flex items-start gap-2 text-xs transition-all" id="compVascularBox">
+                                <span class="material-symbols-outlined text-[17px] text-emerald-600 mt-0.5 flex-shrink-0" id="compVascularIcon">check_circle</span>
+                                <div>
+                                    <span class="font-bold block text-xs" id="compVascularTitle">خطر الانسداد الوعائي (Vascular Occlusion)</span>
+                                    <span class="text-[10.5px] sm:text-[11px] text-slate-500 leading-tight block mt-0.5" id="compVascularDesc">بعيد عن الشريان الوجهي. احتمالية الاختراق الوعائي منخفضة جداً.</span>
+                                </div>
+                            </div>
+
+                            <div class="p-2 sm:p-2.5 rounded-xl border flex items-start gap-2 text-xs transition-all" id="compTyndallBox">
+                                <span class="material-symbols-outlined text-[17px] text-emerald-600 mt-0.5 flex-shrink-0" id="compTyndallIcon">check_circle</span>
+                                <div>
+                                    <span class="font-bold block text-xs" id="compTyndallTitle">ظاهرة تيندال والتكتلات (Tyndall Effect)</span>
+                                    <span class="text-[10.5px] sm:text-[11px] text-slate-500 leading-tight block mt-0.5" id="compTyndallDesc">العمق كافٍ لمنع ظهور اللون الأزرق أو التكتلات السطحية المرئية.</span>
+                                </div>
+                            </div>
+
+                            <div class="p-2 sm:p-2.5 rounded-xl border flex items-start gap-2 text-xs transition-all" id="compBlanchBox">
+                                <span class="material-symbols-outlined text-[17px] text-emerald-600 mt-0.5 flex-shrink-0" id="compBlanchIcon">check_circle</span>
+                                <div>
+                                    <span class="font-bold block text-xs" id="compBlanchTitle">التروية الدموية وابيضاض الجلد (Tissue Blanching)</span>
+                                    <span class="text-[10.5px] sm:text-[11px] text-slate-500 leading-tight block mt-0.5" id="compBlanchDesc">التروية الشعرية طبيعية وتدفق الدم سليم (Capillary refill &lt; 2s).</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Emergency Antidote Protocol -->
+                        <div class="p-2.5 sm:p-3 bg-amber-50/90 rounded-xl border border-amber-200 text-xs">
+                            <div class="flex items-center gap-1 text-amber-900 font-bold mb-0.5">
+                                <span class="material-symbols-outlined text-[17px] text-amber-600">medication</span>
+                                <span>بروتوكول الهيالورونيداز عالي الجرعة (HDPH DeLorenzi)</span>
+                            </div>
+                            <p class="text-[10.5px] sm:text-[11px] text-amber-950 leading-relaxed" id="antidoteProtocolText">
+                                في حال حدوث ارتداد دموي أو اشتباه بانسداد: حقن فوري لـ <strong>500 - 750 وحدة</strong> من إنزيم الهيالورونيداز في الحقل الإقفاري وتكرارها بالساعة حتى عودة التروية الشعرية.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="mt-1.5 text-center text-[9.5px] sm:text-[10px] text-slate-400 font-sans">
+                        إرشادات السلامة السريرية وفق المعايير العالمية لطب التجميل وحقن الفيلر
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- 5. Action Buttons -->
+            <div class="grid grid-cols-2 sm:flex gap-2 sm:gap-2.5 pt-0.5">
+                <button id="resetBtn" class="py-3 px-3 sm:px-4 bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 hover:text-slate-900 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 shadow-sm active:scale-95 col-span-1">
+                    <span class="material-symbols-outlined text-[17px]">refresh</span>
+                    <span>إعادة ضبط</span>
+                </button>
+
+                <button id="aspirateBtn" class="py-3 px-3 sm:px-4 bg-slate-800 text-white hover:bg-slate-900 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 shadow-sm active:scale-95 col-span-1">
+                    <span class="material-symbols-outlined text-[17px] text-red-400">bloodtype</span>
+                    <span id="aspirateBtnText">فحص الشفط</span>
+                </button>
+
+                <button id="injectBtn" class="py-3.5 px-4 bg-gradient-to-r from-primary to-primary-light text-white hover:from-primary-dark hover:to-primary rounded-xl text-xs sm:text-sm font-bold tracking-wide transition-all shadow-md shadow-primary/25 hover:shadow-lg flex items-center justify-center gap-1.5 active:scale-95 col-span-2 sm:flex-[1.8]">
+                    <span class="material-symbols-outlined filled text-[19px]">vaccines</span>
+                    <span id="injectBtnText">حقن بولس فيلر (0.10 مل)</span>
+                </button>
+            </div>
+
+        </aside>
+
+    </main>
+
+    <!-- ============================================== -->
+    <!-- DETAILED CLINICAL CASE REPORT MODAL (التقرير الطبي المفصل) -->
+    <!-- ============================================== -->
+    <div id="fullReportModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2.5 sm:p-5 hidden opacity-0 transition-opacity duration-200">
+        <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[88vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden text-right">
+            
+            <!-- Modal Header -->
+            <div class="px-4 sm:px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-primary flex items-center justify-center text-white flex-shrink-0">
+                        <span class="material-symbols-outlined text-[18px] sm:text-[20px]">description</span>
+                    </div>
+                    <div>
+                        <h2 class="text-xs sm:text-sm font-extrabold text-slate-800">التقرير السريري الطبي والبيوميكانيكي للحقن</h2>
+                        <p class="text-[10px] sm:text-[11px] text-slate-500">تحليل ريولوجيا الجل، تقييم زاوية الدخول، واستجابة الأنسجة وحسابات السلامة</p>
+                    </div>
+                </div>
+                <button id="closeReportModalBtn" class="p-1.5 rounded-lg hover:bg-slate-200 text-slate-500 transition-colors">
+                    <span class="material-symbols-outlined text-[19px]">close</span>
+                </button>
+            </div>
+
+            <!-- Modal Content (Scrollable) -->
+            <div class="p-3.5 sm:p-5 overflow-y-auto space-y-3.5 text-xs text-slate-700">
+                
+                <!-- Section 1: Injected Boluses Summary -->
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                    <div class="flex justify-between items-center mb-1.5">
+                        <span class="font-extrabold text-slate-800 text-xs sm:text-[13px]">1. ملخص القياسات والأداة والتقنية</span>
+                        <span class="font-mono font-bold text-primary text-xs" id="modalTotalVolText">0.00 / 1.00 mL</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-1.5 sm:gap-2 text-[10.5px] sm:text-[11px]">
+                        <div class="p-2 bg-white rounded-lg border border-slate-100">
+                            <span class="text-slate-400 block text-[9.5px]">الرفع والبروز</span>
+                            <span class="font-bold font-mono text-emerald-600" id="modalLiftText">+0.0 mm</span>
+                        </div>
+                        <div class="p-2 bg-white rounded-lg border border-slate-100">
+                            <span class="text-slate-400 block text-[9.5px]">الطبقة والتقنية</span>
+                            <span class="font-bold truncate block" id="modalLayerText">الدهون تحت الجلد</span>
+                        </div>
+                        <div class="p-2 bg-white rounded-lg border border-slate-100">
+                            <span class="text-slate-400 block text-[9.5px]">الزاوية والأداة</span>
+                            <span class="font-bold font-mono" id="modalAngleText">40° (إبرة)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 2: Clinical Angle & Biomechanics Analysis -->
+                <div>
+                    <h3 class="font-bold text-slate-800 mb-1 flex items-center gap-1 text-xs">
+                        <span class="material-symbols-outlined text-[15px] text-primary">straighten</span>
+                        <span>2. التقييم العلمي لزاوية الإبرة والتأثير النسيجي (Angle-Tissue Dynamics)</span>
+                    </h3>
+                    <div class="p-2.5 sm:p-3 bg-slate-50 rounded-xl border border-slate-200 text-[10.5px] sm:text-[11px] space-y-1.5">
+                        <div class="flex justify-between items-center">
+                            <span class="text-slate-600 font-bold">التوافق الزاوي السريري:</span>
+                            <span class="font-bold text-emerald-600" id="modalAngleComplianceVal">100% (مثالي للطبقة)</span>
+                        </div>
+                        <p id="modalAngleDetailText" class="leading-relaxed text-slate-600">
+                            الزاوية الحالية تضمن مساراً متوازياً مع الفصوص الدهنية يمنع انزلاق الجل السطحي أو اختراق الأوعية العميقة.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Section 3: Rheological & Biomechanical Profile -->
+                <div>
+                    <h3 class="font-bold text-slate-800 mb-1 flex items-center gap-1 text-xs">
+                        <span class="material-symbols-outlined text-[15px] text-primary">biotech</span>
+                        <span>3. الخصائص الريولوجية للجل المختار (HA Rheology Profile)</span>
+                    </h3>
+                    <div class="p-2.5 sm:p-3 bg-primary-surface/60 rounded-xl border border-primary/20 space-y-1.5 text-[10.5px] sm:text-[11px]">
+                        <div class="flex justify-between">
+                            <span class="text-slate-600">معامل المرونة والصلابة (G'):</span>
+                            <span class="font-mono font-bold text-primary" id="modalGPrimeDetail">320 Pa</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-600">مقياس التماسك (Cohesivity):</span>
+                            <span class="font-bold" id="modalCohesivityDetail">عالي التماسك (3.5 / 5)</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-600">تركيز حمض الهيالورونيك:</span>
+                            <span class="font-mono font-bold" id="modalHACnc">24 mg/mL</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-600">درجة الربط المتقاطع (BDDE):</span>
+                            <span class="font-mono font-bold" id="modalCrosslinking">7.5%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 4: Tissue Response & Biomechanics -->
+                <div>
+                    <h3 class="font-bold text-slate-800 mb-1 flex items-center gap-1 text-xs">
+                        <span class="material-symbols-outlined text-[15px] text-emerald-600">expand</span>
+                        <span>4. الاستجابة البيوميكانيكية للأنسجة (Tissue Mechanics)</span>
+                    </h3>
+                    <div class="p-2.5 sm:p-3 bg-emerald-50/60 rounded-xl border border-emerald-200 text-[10.5px] sm:text-[11px]">
+                        <p id="modalTissueResponseText" class="leading-relaxed">
+                            يتم إيداع الجل في النسيج الدهني الرخو مما يؤدي إلى إزاحة فصيصية متجانسة وتوزيع هيدروفيلي ناعم يمنح دعماً مرناً للأنسجة المحيطة.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Section 5: Risk Matrix & HDPH Emergency Protocol -->
+                <div>
+                    <h3 class="font-bold text-slate-800 mb-1 flex items-center gap-1 text-xs">
+                        <span class="material-symbols-outlined text-[15px] text-danger">health_and_safety</span>
+                        <span>5. مصفوفة المخاطر وبروتوكول الطوارئ (HDPH Protocol)</span>
+                    </h3>
+                    <div class="p-2.5 sm:p-3 bg-red-50/60 rounded-xl border border-red-200 space-y-1.5 text-[10.5px] sm:text-[11px]">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-red-950">خطر الاختراق الوعائي المباشر:</span>
+                            <span class="font-mono font-bold px-1.5 py-0.5 rounded bg-white text-xs" id="modalVascRiskPct">8% (منخفض)</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-amber-950">خطر تشتت تيندال السطحي:</span>
+                            <span class="font-mono font-bold px-1.5 py-0.5 rounded bg-white text-xs" id="modalTyndallRiskPct">0%</span>
+                        </div>
+                        <div class="border-t border-red-200/60 pt-1.5 text-red-950 leading-relaxed">
+                            <strong>جرعة الهيالورونيداز الإسعافية:</strong> 
+                            <span id="modalHyaluronidaseDose">500 - 750 وحدة دولية تحقن فوراً في موقع الإقفار وتكرر بالساعة مع كمادات دافئة وأسبرين 325 ملغ.</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="px-4 sm:px-5 py-3 bg-slate-50 border-t border-slate-200 flex justify-end">
+                <button id="closeReportModalBottomBtn" class="px-4 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold hover:bg-slate-900 transition-colors">
+                    إغلاق التقرير
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer Information Bar -->
+    <footer class="w-full bg-white border-t border-slate-200/80 py-2.5 px-4 text-center text-[10.5px] sm:text-xs text-slate-400 mt-auto">
+        <p>KERA Inject Lab • Precision Facial Aesthetic Simulation Suite • Educational & Clinical Guidance Platform</p>
+    </footer>
+
+    <!-- ============================================== -->
+    <!-- JAVASCRIPT SIMULATION LOGIC & STATE ENGINE -->
+    <!-- ============================================== -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            // -------------------------------------------------------------
+            // 1. STATE CONFIGURATION
+            // -------------------------------------------------------------
+            const state = {
+                currentDepth: 2.4, // مم (0.0 إلى 8.0)
+                currentAngle: 40,  // درجات (10 إلى 90)
+                needleX: 480,      // SVG X (90 إلى 830)
+                needleY: 235,      // SVG Y
+                targetLayer: 'subcutaneous',
+                instrument: 'needle', // 'needle' | 'cannula'
+                technique: 'bolus',   // 'bolus' | 'linear' | 'fanning' | 'micro'
+                bolusStep: 0.10,      // 0.05 | 0.10 | 0.20 mL
+                injectedVolume: 0.0, // مل
+                maxVolume: 1.0,      // مل
+                boluses: [],         // مصفوفة البولسات المحقونة
+                isDragging: false,
+                audioEnabled: true,
+                aspirationState: 'none', // 'none' | 'negative' | 'positive'
+                isAspirating: false,
+                beforeAfterMode: false,  // تبديل عرض ما قبل/ما بعد الحقن
+                totalLiftMm: 0.0,        // معدل الرفع الحجمي التراكمي
+                cardTimeout: null
+            };
+
+            // تعريفات الطبقات التشريحية والتقييم الطبي باللغة العربية
+            const LAYERS = {
+                EPIDERMIS_DERMIS: {
+                    name: 'حقن سطحي (داخل الأدمة)',
+                    shortName: 'داخل الأدمة (Intradermal)',
+                    minDepth: 0.0,
+                    maxDepth: 1.2,
+                    idealAngleMin: 10,
+                    idealAngleMax: 20,
+                    idealTech: 'micro',
+                    gPrime: '120 Pa (منخفض جداً)',
+                    gPrimeVal: 120,
+                    haCnc: '15 mg/mL',
+                    crosslinking: '3.5% (ناعم)',
+                    gauge: '30G - 32G (طول 4 مم)',
+                    cohesivity: 'خفيف اللزوجة (Smooth 2/5)',
+                    alertType: 'warning',
+                    alertTitle: 'حقن سطحي دقيق (Intradermal Layer)',
+                    alertDesc: 'مستوى الأدمة مخصص لتصحيح الخطوط الدقيقة وحقن النضارة (Skinboosters). خطر حدوث ظاهرة تيندال أو تكتلات إذا استُخدم فيلر عالي الصلابة.',
+                    outcomeTitle: 'تنعيم سطحي وترطيب مكثف للخطوط',
+                    outcomeDesc: 'تحسين مرونة ونضارة البشرة مع ملء الخطوط التعبيرية السطحية وتلاشي المسام الدقيقة.',
+                    actionAdvice: '💡 تدليك سطحي خفيف لتوزيع الجل وتجنب ظهور حطاطات دقيقة.',
+                    tissueResponse: 'تكون حطاطة أدمية موضعية (Dermal Wheal) تتكامل مع مصفوفة الكولاجين المحيطة خلال 24-48 ساعة.',
+                    longevity: '6 - 9 أشهر',
+                    bioIntPct: '85% ناعم',
+                    stabilityText: 'متوسط (مرن)',
+                    vascRiskBase: 4,
+                    tyndallRiskBase: 85,
+                    antidoteDose: '15 - 30 وحدة في حال تكون حطاطات مرئية مستمرة.',
+                    riskLevel: 'medium'
+                },
+                SUBCUTANEOUS: {
+                    name: 'الدهون تحت الجلد',
+                    shortName: 'تحت الجلد (Subcutaneous)',
+                    minDepth: 1.2,
+                    maxDepth: 3.4,
+                    idealAngleMin: 30,
+                    idealAngleMax: 50,
+                    idealTech: 'linear',
+                    gPrime: '320 Pa (متوسط)',
+                    gPrimeVal: 320,
+                    haCnc: '24 mg/mL',
+                    crosslinking: '7.5% (متماسك)',
+                    gauge: '27G إبرة / 25G كانيولا',
+                    cohesivity: 'عالي التماسك (High Cohesive 3.5/5)',
+                    alertType: 'safe',
+                    alertTitle: 'مستوى الدهون تحت الجلد (Sub-Q Safe Zone)',
+                    alertDesc: 'المستوى النموذجي والأكثر أماناً لاستعادة الحجم وتعبئة الثنايا وتنسيق الوجنتين والشفاه بانسيابية طبيعية.',
+                    outcomeTitle: 'استعادة الحجم الطبيعي وتنسيق الملامح',
+                    outcomeDesc: 'رفع حجمي ناعم ومتجانس للنسيج الدهني الرخو مع استعادة امتلاء الخدود وتخفيف ثنايا الابتسامة بنسبة ممتازة.',
+                    actionAdvice: '💡 مساج موضعي ناعم لضمان انسيابية الحواف واندماج الفيلر في النسيج الدهني.',
+                    tissueResponse: 'إزاحة نسيجية هيدروفيلية بين الفصيصات الدهنية مع تكامل متجانس يمنح دعماً مرناً ومظهراً طبيعياً.',
+                    longevity: '12 - 15 شهراً',
+                    bioIntPct: '94% متناسق',
+                    stabilityText: 'مرتفع (بدون هجرة)',
+                    vascRiskBase: 8,
+                    tyndallRiskBase: 0,
+                    antidoteDose: '500 - 750 وحدة في الحقل الإقفاري في حال حدوث صدمة وعائية.',
+                    riskLevel: 'low'
+                },
+                SMAS_MUSCLE: {
+                    name: 'طبقة العضلات والـ SMAS',
+                    shortName: 'العضلات / SMAS ⚠',
+                    minDepth: 3.4,
+                    maxDepth: 5.0,
+                    idealAngleMin: 30,
+                    idealAngleMax: 45,
+                    idealTech: 'bolus',
+                    gPrime: '580 Pa (عالي ديناميكي)',
+                    gPrimeVal: 580,
+                    haCnc: '25 mg/mL',
+                    crosslinking: '9.0%',
+                    gauge: '25G كانيولا حادة الحواف',
+                    cohesivity: 'عالي المرونة (Dynamic 4/5)',
+                    alertType: 'danger',
+                    alertTitle: 'مستوى العضلات واللفافة السطحية (SMAS Plane)',
+                    alertDesc: 'مستوى غني بالحزم العصبية والأوعية الدموية (الشريان والوريد الوجهي). الشفط الوقائي قبل الحقن إلزامي لتفادي النخر الأنسجي!',
+                    outcomeTitle: 'تثبيت نسيجي في المستوى العضلي',
+                    outcomeDesc: 'توفير دعم ديناميكي مع حركة العضلات التعبيرية، لكنه يتطلب حذراً كبيراً في التوزيع.',
+                    actionAdvice: '⚠ تجنب الحقن السريع أو البولسات الكبيرة وافحص التروية فوراً.',
+                    tissueResponse: 'تداخل الجل مع الألياف العضلية المخططة (Zygomaticus major)، مما يجعله عرضة لقوى القص الحركية أثناء التعبير والابتسام.',
+                    longevity: '12 - 18 شهراً',
+                    bioIntPct: '78% حركي',
+                    stabilityText: 'متوسط (عرضة للقص)',
+                    vascRiskBase: 65,
+                    tyndallRiskBase: 0,
+                    antidoteDose: '750 - 1000 وحدة فوراً في المستوى العضلي مع أسبرين 325 ملغ وكمادات دافئة.',
+                    riskLevel: 'high'
+                },
+                DEEP_FAT: {
+                    name: 'الدهون العميقة',
+                    shortName: 'الدهون العميقة (Deep Fat)',
+                    minDepth: 5.0,
+                    maxDepth: 6.5,
+                    idealAngleMin: 45,
+                    idealAngleMax: 70,
+                    idealTech: 'fanning',
+                    gPrime: '850 Pa (عالي جداً)',
+                    gPrimeVal: 850,
+                    haCnc: '25 mg/mL',
+                    crosslinking: '10.5%',
+                    gauge: '27G إبرة (13 مم) / 25G كانيولا',
+                    cohesivity: 'مقاوم للضغط (Firm 4.5/5)',
+                    alertType: 'safe',
+                    alertTitle: 'مستوى الدهون العميقة (Deep Fat Compartment)',
+                    alertDesc: 'مستوى عميق ومستقر لدعم الأنسجة والرفع البنيوي دون أي خطر لظهور تكتلات أو عدم تناسق على سطح الجلد.',
+                    outcomeTitle: 'دعم ورفع بنيوي عميق للوجه',
+                    outcomeDesc: 'استعادة الامتلاء العميق لقاعدة الخد والمنطقة الوسطى مما يعيد شباب الهيكل التشريحي للوجه.',
+                    actionAdvice: '💡 تثبيت البولس في الحجيرة العميقة لتوفير قاعدة رفع قوية للأنسجة السطحية.',
+                    tissueResponse: 'تشكيل قاعدة هيدروليكية عميقة ترفع طبقات الأنسجة الرخوة السطحية دون أي تشوهات ملموسة على الجلد.',
+                    longevity: '15 - 18 شهراً',
+                    bioIntPct: '96% هيكلي',
+                    stabilityText: 'ممتاز (ثابت تماماً)',
+                    vascRiskBase: 12,
+                    tyndallRiskBase: 0,
+                    antidoteDose: '300 - 500 وحدة عميقة.',
+                    riskLevel: 'low'
+                },
+                BONE: {
+                    name: 'فوق السمحاق العظمي',
+                    shortName: 'فوق العظم (Supraperiosteal)',
+                    minDepth: 6.5,
+                    maxDepth: 8.0,
+                    idealAngleMin: 80,
+                    idealAngleMax: 90,
+                    idealTech: 'bolus',
+                    gPrime: '1200 Pa (أقصى صلابة)',
+                    gPrimeVal: 1200,
+                    haCnc: '26 mg/mL',
+                    crosslinking: '11.0% (أقصى رفع)',
+                    gauge: '27G إبرة عظمية (13 مم)',
+                    cohesivity: 'أقصى قدرة إسقاط ورفع (Max Projection 5/5)',
+                    alertType: 'safe',
+                    alertTitle: 'ملامسة العظم والسمحاق (Supraperiosteal Contact)',
+                    alertDesc: 'حقن بولس صلب ومستقر مباشرة فوق العظم لتحديد عظام الخد، والذقن، وزاوية الفك مع أقصى درجة إسقاط وثبات.',
+                    outcomeTitle: 'تحديد حاد وبروز هيكلي عظمي',
+                    outcomeDesc: 'نحت وبروز عظمي صلب ودائم لعظام الخد والذقن (Malar & Chin Projection) مع ثبات تام دون هجرة للفيلر.',
+                    actionAdvice: '💡 حقن بولس ثابت مع ملامسة السمحاق لضمان عدم تحرك الفيلر وثبات البروز العظمي.',
+                    tissueResponse: 'تثبيت قبة هيدروجيلية صلبة فوق السمحاق العظمي مباشرة، لتوليد متجهات رفع عمودية صافية تمنع أي انزياح جانبي.',
+                    longevity: '18 - 24 شهراً',
+                    bioIntPct: '98% عظمي صلب',
+                    stabilityText: 'أقصى درجات الثبات (Max)',
+                    vascRiskBase: 3,
+                    tyndallRiskBase: 0,
+                    antidoteDose: '150 - 250 وحدة على السمحاق العظمي لتعديل البروز.',
+                    riskLevel: 'low'
+                }
+            };
+
+            const ARTERY_LOCATION = { x: 369, y: 237, radius: 36 };
+
+            // -------------------------------------------------------------
+            // 2. DOM ELEMENT REFERENCES
+            // -------------------------------------------------------------
+            const svg = document.getElementById('crossSectionSvg');
+            const needleGroup = document.getElementById('needleGroup');
+            const rulerPointer = document.getElementById('rulerPointer');
+            const bolusesGroup = document.getElementById('bolusesGroup');
+            const hubFlashback = document.getElementById('hubFlashback');
+            const injectionFlash = document.getElementById('injectionFlash');
+            const barrelFluid = document.getElementById('barrelFluid');
+            const plungerAssembly = document.getElementById('plungerAssembly');
+            const skinLiftGroup = document.getElementById('skinLiftGroup');
+            const skinLiftPath = document.getElementById('skinLiftPath');
+            const skinLiftFill = document.getElementById('skinLiftFill');
+            const cannulaShaft = document.getElementById('cannulaShaft');
+            const needleBevel = document.getElementById('needleBevel');
+
+            // Live Results Drawer Elements
+            const liveInjectionResultCard = document.getElementById('liveInjectionResultCard');
+            const resCardTitle = document.getElementById('resCardTitle');
+            const resCardPlaneTag = document.getElementById('resCardPlaneTag');
+            const resLiftVal = document.getElementById('resLiftVal');
+            const resBioIntVal = document.getElementById('resBioIntVal');
+            const resStabilityVal = document.getElementById('resStabilityVal');
+            const resVascVal = document.getElementById('resVascVal');
+            const resTyndallVal = document.getElementById('resTyndallVal');
+            const resBlanchVal = document.getElementById('resBlanchVal');
+            const resCardAdviceText = document.getElementById('resCardAdviceText');
+            const closeLiveResultCardBtn = document.getElementById('closeLiveResultCardBtn');
+            const viewModalFromCardBtn = document.getElementById('viewModalFromCardBtn');
+
+            // Controls & Techniques
+            const techBtns = document.querySelectorAll('.tech-btn');
+            const instBtns = document.querySelectorAll('.inst-btn');
+            const doseBtns = document.querySelectorAll('.dose-btn');
+            const currentTechBadge = document.getElementById('currentTechBadge');
+            const depthSlider = document.getElementById('depthSlider');
+            const depthSliderValue = document.getElementById('depthSliderValue');
+            const angleSlider = document.getElementById('angleSlider');
+            const angleSliderValue = document.getElementById('angleSliderValue');
+            const layerRadioCards = document.querySelectorAll('.layer-radio-card');
+            
+            // Angle-Layer Biomechanical Analysis
+            const angleComplianceBadge = document.getElementById('angleComplianceBadge');
+            const angleAnalysisIcon = document.getElementById('angleAnalysisIcon');
+            const angleAnalysisTitle = document.getElementById('angleAnalysisTitle');
+            const angleAnalysisDesc = document.getElementById('angleAnalysisDesc');
+
+            // Tabs
+            const tabBtns = document.querySelectorAll('.tab-btn');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            // Action Buttons
+            const injectBtn = document.getElementById('injectBtn');
+            const injectBtnText = document.getElementById('injectBtnText');
+            const aspirateBtn = document.getElementById('aspirateBtn');
+            const aspirateBtnText = document.getElementById('aspirateBtnText');
+            const resetBtn = document.getElementById('resetBtn');
+            const quickClearBolusBtn = document.getElementById('quickClearBolusBtn');
+            const toggleBeforeAfterBtn = document.getElementById('toggleBeforeAfterBtn');
+            const beforeAfterText = document.getElementById('beforeAfterText');
+            const audioToggleBtn = document.getElementById('audioToggleBtn');
+            const audioIcon = document.getElementById('audioIcon');
+            const audioText = document.getElementById('audioText');
+
+            // Detailed Report Modal Elements
+            const openFullReportBtn = document.getElementById('openFullReportBtn');
+            const fullReportModal = document.getElementById('fullReportModal');
+            const closeReportModalBtn = document.getElementById('closeReportModalBtn');
+            const closeReportModalBottomBtn = document.getElementById('closeReportModalBottomBtn');
+            const modalTotalVolText = document.getElementById('modalTotalVolText');
+            const modalLiftText = document.getElementById('modalLiftText');
+            const modalLayerText = document.getElementById('modalLayerText');
+            const modalAngleText = document.getElementById('modalAngleText');
+            const modalAngleComplianceVal = document.getElementById('modalAngleComplianceVal');
+            const modalAngleDetailText = document.getElementById('modalAngleDetailText');
+            const modalGPrimeDetail = document.getElementById('modalGPrimeDetail');
+            const modalCohesivityDetail = document.getElementById('modalCohesivityDetail');
+            const modalHACnc = document.getElementById('modalHACnc');
+            const modalCrosslinking = document.getElementById('modalCrosslinking');
+            const modalTissueResponseText = document.getElementById('modalTissueResponseText');
+            const modalVascRiskPct = document.getElementById('modalVascRiskPct');
+            const modalTyndallRiskPct = document.getElementById('modalTyndallRiskPct');
+            const modalHyaluronidaseDose = document.getElementById('modalHyaluronidaseDose');
+
+            // Telemetry & Assessment Readouts
+            const liveDepthHeader = document.getElementById('liveDepthHeader');
+            const globalStatusDot = document.getElementById('globalStatusDot');
+            const hudLayerName = document.getElementById('hudLayerName');
+            const hudDepthVal = document.getElementById('hudDepthVal');
+            const hudSafetyBadge = document.getElementById('hudSafetyBadge');
+            const statInjectedVol = document.getElementById('statInjectedVol');
+            const statAngle = document.getElementById('statAngle');
+            const statAspiration = document.getElementById('statAspiration');
+            const statLiftProjection = document.getElementById('statLiftProjection');
+
+            // Assessment Tab Elements
+            const assessmentStatusBadge = document.getElementById('assessmentStatusBadge');
+            const assessmentAlertBox = document.getElementById('assessmentAlertBox');
+            const alertIcon = document.getElementById('alertIcon');
+            const alertTitle = document.getElementById('alertTitle');
+            const alertDesc = document.getElementById('alertDesc');
+            const cardDepthDisplay = document.getElementById('cardDepthDisplay');
+            const cardGPrimeDisplay = document.getElementById('cardGPrimeDisplay');
+            const cardGaugeDisplay = document.getElementById('cardGaugeDisplay');
+            const cardCohesivityDisplay = document.getElementById('cardCohesivityDisplay');
+            const syringeBarLabel = document.getElementById('syringeBarLabel');
+            const syringeProgressBar = document.getElementById('syringeProgressBar');
+
+            // Outcomes Tab Elements
+            const outcomeRatingBadge = document.getElementById('outcomeRatingBadge');
+            const outcomeLiftScore = document.getElementById('outcomeLiftScore');
+            const outcomeLiftBar = document.getElementById('outcomeLiftBar');
+            const outcomeLiftDesc = document.getElementById('outcomeLiftDesc');
+            const forecastTitle = document.getElementById('forecastTitle');
+            const forecastDesc = document.getElementById('forecastDesc');
+            const longevityText = document.getElementById('longevityText');
+
+            // Complications Tab Elements
+            const riskIndexBadge = document.getElementById('riskIndexBadge');
+            const compVascularBox = document.getElementById('compVascularBox');
+            const compVascularIcon = document.getElementById('compVascularIcon');
+            const compVascularTitle = document.getElementById('compVascularTitle');
+            const compVascularDesc = document.getElementById('compVascularDesc');
+            const compTyndallBox = document.getElementById('compTyndallBox');
+            const compTyndallIcon = document.getElementById('compTyndallIcon');
+            const compTyndallTitle = document.getElementById('compTyndallTitle');
+            const compTyndallDesc = document.getElementById('compTyndallDesc');
+            const compBlanchBox = document.getElementById('compBlanchBox');
+            const compBlanchIcon = document.getElementById('compBlanchIcon');
+            const compBlanchTitle = document.getElementById('compBlanchTitle');
+            const compBlanchDesc = document.getElementById('compBlanchDesc');
+            const antidoteProtocolText = document.getElementById('antidoteProtocolText');
+
+            // -------------------------------------------------------------
+            // 3. SOUND SYNTHESIZER
+            // -------------------------------------------------------------
+            let audioCtx = null;
+            function initAudio() {
+                if (!audioCtx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if (AudioContext) audioCtx = new AudioContext();
+                }
+                if (audioCtx && audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+            }
+
+            function playSound(type) {
+                if (!state.audioEnabled) return;
+                try {
+                    initAudio();
+                    if (!audioCtx) return;
+
+                    const now = audioCtx.currentTime;
+
+                    if (type === 'inject') {
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(540, now);
+                        osc.frequency.exponentialRampToValueAtTime(270, now + 0.18);
+                        gain.gain.setValueAtTime(0.2, now);
+                        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
+                        osc.connect(gain);
+                        gain.connect(audioCtx.destination);
+                        osc.start(now);
+                        osc.stop(now + 0.18);
+                    } else if (type === 'safe-aspirate') {
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(587.33, now);
+                        osc.frequency.setValueAtTime(880, now + 0.09);
+                        gain.gain.setValueAtTime(0.15, now);
+                        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                        osc.connect(gain);
+                        gain.connect(audioCtx.destination);
+                        osc.start(now);
+                        osc.stop(now + 0.25);
+                    } else if (type === 'danger-alarm') {
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        osc.type = 'sawtooth';
+                        osc.frequency.setValueAtTime(360, now);
+                        osc.frequency.setValueAtTime(220, now + 0.12);
+                        gain.gain.setValueAtTime(0.25, now);
+                        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+                        osc.connect(gain);
+                        gain.connect(audioCtx.destination);
+                        osc.start(now);
+                        osc.stop(now + 0.35);
+                    } else if (type === 'click') {
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(850, now);
+                        gain.gain.setValueAtTime(0.06, now);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+                        osc.connect(gain);
+                        gain.connect(audioCtx.destination);
+                        osc.start(now);
+                        osc.stop(now + 0.04);
+                    }
+                } catch(e) {
+                    console.warn("Audio note:", e);
+                }
+            }
+
+            // -------------------------------------------------------------
+            // 4. COORDINATE & DEPTH MATHEMATICS
+            // -------------------------------------------------------------
+            const LAYER_Y = {
+                SKIN_SURFACE: 55,
+                DERMIS_END: 185,
+                SUBQ_END: 285,
+                MUSCLE_END: 360,
+                DEEP_FAT_START: 365,
+                DEEP_FAT_END: 440,
+                BONE_START: 445,
+                BONE_END: 520
+            };
+
+            function depthToSvgY(depthMm) {
+                const d = Math.max(0, Math.min(8.0, depthMm));
+                if (d <= 1.2) {
+                    return LAYER_Y.SKIN_SURFACE + (d / 1.2) * (LAYER_Y.DERMIS_END - LAYER_Y.SKIN_SURFACE);
+                } else if (d <= 3.4) {
+                    return LAYER_Y.DERMIS_END + ((d - 1.2) / (3.4 - 1.2)) * (LAYER_Y.SUBQ_END - LAYER_Y.DERMIS_END);
+                } else if (d <= 5.0) {
+                    return LAYER_Y.SUBQ_END + ((d - 3.4) / (5.0 - 3.4)) * (LAYER_Y.MUSCLE_END - LAYER_Y.SUBQ_END);
+                } else if (d <= 6.5) {
+                    return LAYER_Y.DEEP_FAT_START + ((d - 5.0) / (6.5 - 5.0)) * (LAYER_Y.DEEP_FAT_END - LAYER_Y.DEEP_FAT_START);
+                } else {
+                    return LAYER_Y.BONE_START + ((d - 6.5) / (8.0 - 6.5)) * (LAYER_Y.BONE_END - LAYER_Y.BONE_START);
+                }
+            }
+
+            function svgYToDepth(yPos) {
+                if (yPos <= LAYER_Y.SKIN_SURFACE) return 0.0;
+                if (yPos <= LAYER_Y.DERMIS_END) {
+                    return ((yPos - LAYER_Y.SKIN_SURFACE) / (LAYER_Y.DERMIS_END - LAYER_Y.SKIN_SURFACE)) * 1.2;
+                } else if (yPos <= LAYER_Y.SUBQ_END) {
+                    return 1.2 + ((yPos - LAYER_Y.DERMIS_END) / (LAYER_Y.SUBQ_END - LAYER_Y.DERMIS_END)) * (3.4 - 1.2);
+                } else if (yPos <= LAYER_Y.MUSCLE_END) {
+                    return 3.4 + ((yPos - LAYER_Y.SUBQ_END) / (LAYER_Y.MUSCLE_END - LAYER_Y.SUBQ_END)) * (5.0 - 3.4);
+                } else if (yPos < LAYER_Y.DEEP_FAT_START) {
+                    return 5.0;
+                } else if (yPos <= LAYER_Y.DEEP_FAT_END) {
+                    return 5.0 + ((yPos - LAYER_Y.DEEP_FAT_START) / (LAYER_Y.DEEP_FAT_END - LAYER_Y.DEEP_FAT_START)) * (6.5 - 5.0);
+                } else if (yPos < LAYER_Y.BONE_START) {
+                    return 6.5;
+                } else if (yPos <= LAYER_Y.BONE_END) {
+                    return 6.5 + ((yPos - LAYER_Y.BONE_START) / (LAYER_Y.BONE_END - LAYER_Y.BONE_START)) * (8.0 - 6.5);
+                } else {
+                    return 8.0;
+                }
+            }
+
+            function getTissueAnalysis(depthMm, xPos, yPos) {
+                const distToArtery = Math.hypot(xPos - ARTERY_LOCATION.x, yPos - ARTERY_LOCATION.y);
+                const isNearArtery = distToArtery < ARTERY_LOCATION.radius;
+
+                let layerData = LAYERS.SUBCUTANEOUS;
+                if (depthMm <= 1.2) {
+                    layerData = LAYERS.EPIDERMIS_DERMIS;
+                } else if (depthMm <= 3.4) {
+                    layerData = LAYERS.SUBCUTANEOUS;
+                } else if (depthMm <= 5.0) {
+                    layerData = LAYERS.SMAS_MUSCLE;
+                } else if (depthMm <= 6.5) {
+                    layerData = LAYERS.DEEP_FAT;
+                } else {
+                    layerData = LAYERS.BONE;
+                }
+
+                return {
+                    layer: layerData,
+                    isNearArtery: isNearArtery,
+                    distToArtery: distToArtery
+                };
+            }
+
+            // -------------------------------------------------------------
+            // 5. ANGLE-DEPTH CLINICAL EVALUATION ENGINE
+            // -------------------------------------------------------------
+            function evaluateAngleVsLayer(depthMm, angleDeg, layerData) {
+                let compliance = 100;
+                let title = '';
+                let desc = '';
+                let isWarning = false;
+                let isDanger = false;
+
+                if (layerData === LAYERS.EPIDERMIS_DERMIS) {
+                    if (angleDeg <= 20) {
+                        compliance = 100;
+                        title = 'زاوية مماسية مثالية للأدمة (Blanche Technique)';
+                        desc = 'الزاوية المماسية (10°-20°) ترفع البشرة كحطاطة دقيقة (Wheal) وتمنع ثقب قاع الأدمة وتضمن ترطيباً وتصحيحاً سطحياً ناعماً.';
+                    } else if (angleDeg <= 45) {
+                        compliance = 60;
+                        isWarning = true;
+                        title = 'زاوية مائلة متوسطة: خطر انسكاب الفيلر تحت الأدمة';
+                        desc = 'الزاوية المائلة في الأدمة الرقيقة (1.2 مم) تزيد من صعوبة التحكم بحجم الحطاطة وتؤدي لتسرب جزء من الجل تحت الجلد.';
+                    } else {
+                        compliance = 20;
+                        isWarning = true;
+                        title = 'تحذير: زاوية عمودية غير موصى بها للحقن السطحي';
+                        desc = 'الحقن بزاوية حادة/عمودية (60°-90°) يثقب الأدمة فوراً مما يسبب كدمات ثقبية أو تكتلات سطحية غير مرغوبة.';
+                    }
+                } else if (layerData === LAYERS.SUBCUTANEOUS) {
+                    if (angleDeg >= 30 && angleDeg <= 50) {
+                        compliance = 100;
+                        title = 'زاوية مثالية للحقن تحت الجلد والتوزيع الخطي (Sub-Q)';
+                        desc = 'الزاوية (30°-50°) تمنح الأداة مساراً موازياً للنسيج الدهني يتيح تعبئة متجانسة بالحقن التراجعي دون اختراق الـ SMAS.';
+                    } else if (angleDeg < 30) {
+                        compliance = 55;
+                        isWarning = true;
+                        title = 'زاوية ضحلة جداً: خطر الاقتراب من الأدمة وحدوث تيندال';
+                        desc = 'الزاوية المنخفضة قد تجعل الجل يتراكم قريباً جداً من سطح الجلد مما يسبب تدرجاً أزرق (Tyndall Effect).';
+                    } else {
+                        compliance = 65;
+                        isWarning = true;
+                        title = 'زاوية شديدة الانحدار: خطر اختراق الـ SMAS والاصطدام الوعائي';
+                        desc = 'الحقن بزاوية 70°-90° يزيد من سرعة النزول نحو الطبقة العضلية والشريان الوجهي دون مقاومة نسيجية كافية.';
+                    }
+                } else if (layerData === LAYERS.SMAS_MUSCLE) {
+                    if (angleDeg <= 45) {
+                        compliance = 50;
+                        isWarning = true;
+                        title = 'مستوى عضلي حركي: عرضة لقوى القص وتمزق الألياف';
+                        desc = 'الحقن في المستوى العضلي يجعل الجل عرضة لحركة الابتسام والتعبير، مما قد يؤدي لهجرة البولس.';
+                    } else {
+                        compliance = 20;
+                        isDanger = true;
+                        title = 'تحذير حرج: اختراق عمودي مباشر للحزم الوعائية والعصبية';
+                        desc = 'الحقن العمودي في الـ SMAS يشكل أعلى خطورة لاختراق الشريان الوجهي (Facial Artery). الشفط المسبق إلزامي!';
+                    }
+                } else if (layerData === LAYERS.DEEP_FAT) {
+                    if (angleDeg >= 45 && angleDeg <= 75) {
+                        compliance = 95;
+                        title = 'زاوية ممتازة لدعم الحجيرات الدهنية العميقة';
+                        desc = 'تتيح الزاوية استقرار البولس تحت اللفافة العضلية لتوليد متجهات رفع عمودية ترفع ملامح الوجه ككل.';
+                    } else {
+                        compliance = 70;
+                        title = 'زاوية مقبولة مع مراعاة ثبات البولس العميق';
+                        desc = 'احرص على إيداع البولس ببطء لضمان عدم انزياحه جانباً.';
+                    }
+                } else { // BONE
+                    if (angleDeg >= 80) {
+                        compliance = 100;
+                        title = 'الزاوية الذهبية للحقن العظمي (90° Perpendicular Touch Bone)';
+                        desc = 'الملامسة العمودية للسمحاق تضمن ارتكاز البولس الصلب فوق العظم مباشرة، وتعطي أقصى عزم رفع وبروز هيكلي مع منع هجرة الجل تماماً.';
+                    } else if (angleDeg >= 60) {
+                        compliance = 70;
+                        isWarning = true;
+                        title = 'زاوية مائلة فوق العظم: ارتكاز متوسط';
+                        desc = 'الزاوية المائلة قد تقلل من عزم البروز العمودي مقارنة بالحقن العمودي الصريح.';
+                    } else {
+                        compliance = 30;
+                        isDanger = true;
+                        title = 'تحذير: خطر انزلاق الإبرة وتمزق السمحاق (Periosteal Shearing)';
+                        desc = 'دخول الإبرة بزاوية حادة (<50°) على العظم يسبب كشط السمحاق، مما يؤدي لألم شديد وورم دموي تحت السمحاق وانزلاق البولس.';
+                    }
+                }
+
+                return { compliance, title, desc, isWarning, isDanger };
+            }
+
+            // -------------------------------------------------------------
+            // 6. UPDATE SIMULATION & CLINICAL LOGIC
+            // -------------------------------------------------------------
+            function updateSimulation() {
+                const depth = state.currentDepth;
+                const angle = state.currentAngle;
+                
+                state.needleY = depthToSvgY(depth);
+                
+                // Clinical angle: 90° is perpendicular (0° SVG rot), 15° is tangential (-75° SVG rot)
+                const rotationDeg = -(90 - angle);
+                
+                // Needle transform
+                needleGroup.setAttribute('transform', `translate(${state.needleX}, ${state.needleY}) rotate(${rotationDeg})`);
+                
+                // Ruler pointer
+                rulerPointer.setAttribute('transform', `translate(66, ${state.needleY})`);
+
+                // Instrument Visuals (Sharp Needle vs Blunt Cannula)
+                if (state.instrument === 'cannula') {
+                    needleBevel.style.display = 'none';
+                    cannulaShaft.setAttribute('stroke-width', '4');
+                    cannulaShaft.setAttribute('stroke', '#94a3b8');
+                } else {
+                    needleBevel.style.display = 'block';
+                    cannulaShaft.setAttribute('stroke-width', '3');
+                    cannulaShaft.setAttribute('stroke', '#cbd5e1');
+                }
+
+                const analysis = getTissueAnalysis(depth, state.needleX, state.needleY);
+                const currentLayer = analysis.layer;
+                const isVascularHazard = analysis.isNearArtery;
+                const angleEval = evaluateAngleVsLayer(depth, angle, currentLayer);
+
+                const depthStr = depth.toFixed(1);
+                
+                liveDepthHeader.textContent = `${depthStr} مم`;
+                hudDepthVal.textContent = `${depthStr} مم`;
+                cardDepthDisplay.innerHTML = `${depthStr} <span class="text-xs font-normal text-slate-500 font-sans">مم</span>`;
+                depthSliderValue.textContent = `${depthStr} مم`;
+                depthSlider.value = depthStr;
+
+                const instLabel = state.instrument === 'cannula' ? 'كانيولا' : 'إبرة';
+                angleSliderValue.textContent = `${angle}°`;
+                statAngle.textContent = `${angle}° (${instLabel})`;
+                angleSlider.value = angle;
+
+                hudLayerName.textContent = currentLayer.shortName;
+
+                // 1. Angle-Layer Compliance Badge & Card
+                angleComplianceBadge.textContent = `توافق زاوي: ${angleEval.compliance}%`;
+                if (angleEval.compliance >= 85) {
+                    angleComplianceBadge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200";
+                    angleAnalysisIcon.textContent = "check_circle";
+                    angleAnalysisIcon.className = "material-symbols-outlined text-[17px] text-emerald-600 mt-0.5 flex-shrink-0";
+                } else if (angleEval.isDanger) {
+                    angleComplianceBadge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200 animate-pulse";
+                    angleAnalysisIcon.textContent = "dangerous";
+                    angleAnalysisIcon.className = "material-symbols-outlined text-[17px] text-red-600 mt-0.5 flex-shrink-0";
+                } else {
+                    angleComplianceBadge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200";
+                    angleAnalysisIcon.textContent = "warning";
+                    angleAnalysisIcon.className = "material-symbols-outlined text-[17px] text-amber-600 mt-0.5 flex-shrink-0";
+                }
+                angleAnalysisTitle.textContent = angleEval.title;
+                angleAnalysisDesc.textContent = angleEval.desc;
+
+                // 2. Safety Badges & Assessment
+                if (isVascularHazard) {
+                    hudSafetyBadge.className = "px-1.5 py-0.5 rounded text-[9.5px] sm:text-[10px] font-extrabold bg-red-100 text-red-700 animate-pulse";
+                    hudSafetyBadge.textContent = "خطر وعائي ⚠";
+                    globalStatusDot.className = "w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-red-500 animate-ping";
+
+                    assessmentStatusBadge.className = "inline-flex items-center gap-1 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-red-100 text-red-800 border border-red-200 text-[10.5px] sm:text-xs font-bold";
+                    assessmentStatusBadge.innerHTML = `<span class="material-symbols-outlined text-[15px] text-red-600">warning</span><span>خطر ملامسة وعائية</span>`;
+
+                    assessmentAlertBox.className = "p-2.5 sm:p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-950 mb-3 transition-all flex items-start gap-2";
+                    alertIcon.className = "material-symbols-outlined text-[18px] text-red-600 mt-0.5 flex-shrink-0";
+                    alertIcon.textContent = "dangerous";
+                    alertTitle.textContent = "تحذير حرج: محاذاة مسار الشريان الوجهي";
+                    alertDesc.textContent = `رأس الـ (${instLabel}) يقع ضمن المحيط الخطر للشريان الوجهي. يجب سحب المكبس للشفط وتجنب الحقن العشوائي!`;
+                    
+                } else if (currentLayer.alertType === 'warning') {
+                    hudSafetyBadge.className = "px-1.5 py-0.5 rounded text-[9.5px] sm:text-[10px] font-extrabold bg-amber-100 text-amber-800";
+                    hudSafetyBadge.textContent = "حقن سطحي";
+                    globalStatusDot.className = "w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-amber-500";
+
+                    assessmentStatusBadge.className = "inline-flex items-center gap-1 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[10.5px] sm:text-xs font-bold";
+                    assessmentStatusBadge.innerHTML = `<span class="material-symbols-outlined text-[15px] text-amber-600">info</span><span>مستوى الأدمة</span>`;
+
+                    assessmentAlertBox.className = "p-2.5 sm:p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-950 mb-3 transition-all flex items-start gap-2";
+                    alertIcon.className = "material-symbols-outlined text-[18px] text-amber-600 mt-0.5 flex-shrink-0";
+                    alertIcon.textContent = "warning";
+                    alertTitle.textContent = currentLayer.alertTitle;
+                    alertDesc.textContent = currentLayer.alertDesc;
+
+                } else {
+                    hudSafetyBadge.className = "px-1.5 py-0.5 rounded text-[9.5px] sm:text-[10px] font-extrabold bg-emerald-100 text-emerald-800";
+                    hudSafetyBadge.textContent = "مستوى آمن";
+                    globalStatusDot.className = "w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500";
+
+                    assessmentStatusBadge.className = "inline-flex items-center gap-1 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10.5px] sm:text-xs font-bold";
+                    assessmentStatusBadge.innerHTML = `<span class="material-symbols-outlined text-[15px] text-emerald-600">check_circle</span><span>آمن ومثالي</span>`;
+
+                    assessmentAlertBox.className = "p-2.5 sm:p-3 rounded-xl bg-emerald-50/80 border border-emerald-200 text-xs text-emerald-950 mb-3 transition-all flex items-start gap-2";
+                    alertIcon.className = "material-symbols-outlined text-[18px] text-emerald-600 mt-0.5 flex-shrink-0";
+                    alertIcon.textContent = "verified";
+                    alertTitle.textContent = currentLayer.alertTitle;
+                    alertDesc.textContent = currentLayer.alertDesc;
+                }
+
+                cardGPrimeDisplay.textContent = currentLayer.gPrime;
+                cardGaugeDisplay.textContent = `${currentLayer.gauge} • ${instLabel}`;
+                cardCohesivityDisplay.textContent = currentLayer.cohesivity;
+
+                // 3. Update Outcomes & Results Tab
+                updateOutcomesReport(currentLayer, isVascularHazard);
+
+                // 4. Update Complications & Safety Tab
+                updateComplicationsReport(currentLayer, isVascularHazard, angleEval);
+
+                // 5. Update Modal Data
+                updateModalContent(currentLayer, isVascularHazard, angleEval);
+
+                highlightTargetLayerMatching(currentLayer);
+            }
+
+            function updateOutcomesReport(currentLayer, isVascularHazard) {
+                forecastTitle.textContent = currentLayer.outcomeTitle;
+                forecastDesc.textContent = currentLayer.outcomeDesc;
+                longevityText.textContent = currentLayer.longevity;
+
+                let layerLiftFactor = 1.0;
+                if (currentLayer === LAYERS.BONE) layerLiftFactor = 1.6;
+                else if (currentLayer === LAYERS.DEEP_FAT) layerLiftFactor = 1.3;
+                else if (currentLayer === LAYERS.SUBCUTANEOUS) layerLiftFactor = 1.0;
+                else if (currentLayer === LAYERS.EPIDERMIS_DERMIS) layerLiftFactor = 0.5;
+
+                const liftScorePct = Math.min(100, Math.round((state.injectedVolume / state.maxVolume) * 100 * layerLiftFactor));
+                state.totalLiftMm = +((state.injectedVolume * 1.8 * layerLiftFactor).toFixed(1));
+
+                outcomeLiftScore.textContent = `${liftScorePct}%`;
+                outcomeLiftBar.style.width = `${Math.min(100, liftScorePct)}%`;
+                statLiftProjection.textContent = `+${state.totalLiftMm} مم`;
+
+                if (state.injectedVolume === 0) {
+                    outcomeRatingBadge.className = "px-2 sm:px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 text-[10.5px] sm:text-xs font-bold";
+                    outcomeRatingBadge.textContent = "جاهز للحقن";
+                    outcomeLiftDesc.textContent = "لم يتم حقن أي فيلر بعد. اختر التقنية واضغط على 'حقن فيلر' لمشاهدة النتيجة.";
+                    skinLiftGroup.setAttribute('opacity', '0');
+                } else if (isVascularHazard) {
+                    outcomeRatingBadge.className = "px-2 sm:px-2.5 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200 text-[10.5px] sm:text-xs font-bold";
+                    outcomeRatingBadge.textContent = "تأثير غير آمن ⚠";
+                    outcomeLiftDesc.textContent = "تراكم الفيلر بجوار الوعاء الدموي قد يعيق تدفق التروية. تحقق من الشفط فوراً.";
+                } else if (liftScorePct >= 60) {
+                    outcomeRatingBadge.className = "px-2 sm:px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 text-[10.5px] sm:text-xs font-bold";
+                    outcomeRatingBadge.textContent = "امتلاء ورفع مثالي ⭐";
+                    outcomeLiftDesc.textContent = `تم تحقيق رفع حجمي فعال بمقدار +${state.totalLiftMm} مم مع اندماج نسيجي متناسق.`;
+                    renderSkinElevation(state.totalLiftMm);
+                } else {
+                    outcomeRatingBadge.className = "px-2 sm:px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-[10.5px] sm:text-xs font-bold";
+                    outcomeRatingBadge.textContent = "تأثير حجمي أولي";
+                    outcomeLiftDesc.textContent = `تم حقن ${state.injectedVolume.toFixed(2)} مل. استمر بالحقن للوصول للامتلاء المستهدف.`;
+                    renderSkinElevation(state.totalLiftMm);
+                }
+            }
+
+            function renderSkinElevation(liftMm) {
+                if (liftMm <= 0.1) {
+                    skinLiftGroup.setAttribute('opacity', '0');
+                    return;
+                }
+                skinLiftGroup.setAttribute('opacity', '1');
+                const liftPx = Math.min(18, liftMm * 6);
+                const peakY = 55 - liftPx;
+                const peakX = state.needleX;
+                const leftX = Math.max(100, peakX - 160);
+                const rightX = Math.min(840, peakX + 160);
+
+                const dCurve = `M ${leftX} 55 Q ${peakX} ${peakY}, ${rightX} 55`;
+                const dFill = `M ${leftX} 55 Q ${peakX} ${peakY}, ${rightX} 55 L ${rightX} 55 L ${leftX} 55 Z`;
+                
+                skinLiftPath.setAttribute('d', dCurve);
+                skinLiftFill.setAttribute('d', dFill);
+            }
+
+            function updateComplicationsReport(currentLayer, isVascularHazard, angleEval) {
+                // Cannula reduces vascular risk by ~70% compared to sharp needle
+                const instrumentSafetyFactor = state.instrument === 'cannula' ? 0.35 : 1.0;
+
+                if (isVascularHazard) {
+                    const rawRisk = Math.round(92 * instrumentSafetyFactor);
+                    riskIndexBadge.className = "px-2 sm:px-2.5 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200 text-[10.5px] sm:text-xs font-bold animate-pulse";
+                    riskIndexBadge.textContent = `خطر وعائي (${rawRisk}%)`;
+
+                    compVascularBox.className = "p-2 sm:p-2.5 rounded-xl border border-red-300 bg-red-50 text-xs flex items-start gap-2";
+                    compVascularIcon.className = "material-symbols-outlined text-[17px] text-red-600 mt-0.5 flex-shrink-0";
+                    compVascularIcon.textContent = "dangerous";
+                    compVascularTitle.className = "font-bold text-red-900";
+                    compVascularDesc.textContent = state.instrument === 'cannula' 
+                        ? "كانيولا كليلة في منطقة الشريان: احتمال الاختراق أقل لكن الضغط الحجمي يتطلب سحب الشفط." 
+                        : "إبرة حادة في مسار الشريان الوجهي: احتمال مرتفع للاختراق الوعائي المباشر (Intra-arterial embolism). نفّذ فحص الشفط فوراً!";
+
+                    antidoteProtocolText.innerHTML = "<strong>بروتوكول HDPH الإسعافي:</strong> في حال ظهور شحوب فوري أو دم بالشفط، أوقف الحقن واحقن <strong>500 - 750 وحدة</strong> هيالورونيداز كل ساعة حتى عودة زمن التروية الشعرية إلى أقل من ثانيتين.";
+
+                } else {
+                    riskIndexBadge.className = "px-2 sm:px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10.5px] sm:text-xs font-bold";
+                    riskIndexBadge.textContent = "خطر منخفض (Safe Plane)";
+
+                    compVascularBox.className = "p-2 sm:p-2.5 rounded-xl border border-emerald-200 bg-emerald-50/60 text-xs flex items-start gap-2";
+                    compVascularIcon.className = "material-symbols-outlined text-[17px] text-emerald-600 mt-0.5 flex-shrink-0";
+                    compVascularIcon.textContent = "check_circle";
+                    compVascularTitle.className = "font-bold text-emerald-950";
+                    compVascularDesc.textContent = "مسار الأداة في مستوى آمن وبعيد عن الجذوع الوعائية الكبرى.";
+
+                    antidoteProtocolText.innerHTML = `بروتوكول الأمان الموصى به لهذه الطبقة: ${currentLayer.antidoteDose}`;
+                }
+
+                // Tyndall Check
+                if (currentLayer === LAYERS.EPIDERMIS_DERMIS && state.injectedVolume > 0.15) {
+                    compTyndallBox.className = "p-2 sm:p-2.5 rounded-xl border border-amber-300 bg-amber-50 text-xs flex items-start gap-2";
+                    compTyndallIcon.className = "material-symbols-outlined text-[17px] text-amber-600 mt-0.5 flex-shrink-0";
+                    compTyndallIcon.textContent = "warning";
+                    compTyndallTitle.className = "font-bold text-amber-900";
+                    compTyndallDesc.textContent = "تنبيه: حقن كميات تفوق 0.15 مل سطحياً قد يسبب تكتلاً مرئياً أو تدرجاً أزرق (Tyndall Rayleigh Scattering ~450nm).";
+                } else {
+                    compTyndallBox.className = "p-2 sm:p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs flex items-start gap-2";
+                    compTyndallIcon.className = "material-symbols-outlined text-[17px] text-emerald-600 mt-0.5 flex-shrink-0";
+                    compTyndallIcon.textContent = "check_circle";
+                    compTyndallTitle.className = "font-bold text-slate-800";
+                    compTyndallDesc.textContent = "العمق كافٍ لمنع ظهور اللون الأزرق أو التكتلات السطحية المرئية.";
+                }
+
+                // Blanching Check
+                if (isVascularHazard && state.injectedVolume > 0) {
+                    compBlanchBox.className = "p-2 sm:p-2.5 rounded-xl border border-red-300 bg-red-50 text-xs flex items-start gap-2";
+                    compBlanchIcon.className = "material-symbols-outlined text-[17px] text-red-600 mt-0.5 flex-shrink-0";
+                    compBlanchIcon.textContent = "warning";
+                    compBlanchTitle.className = "font-bold text-red-900";
+                    compBlanchDesc.textContent = "شبهة نقص تروية (Ischemia): راقب علامات ابيضاض الجلد والعودة الشعرية فوراً (Capillary Refill > 2s).";
+                } else {
+                    compBlanchBox.className = "p-2 sm:p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs flex items-start gap-2";
+                    compBlanchIcon.className = "material-symbols-outlined text-[17px] text-emerald-600 mt-0.5 flex-shrink-0";
+                    compBlanchIcon.textContent = "check_circle";
+                    compBlanchTitle.className = "font-bold text-slate-800";
+                    compBlanchDesc.textContent = "التروية الشعرية طبيعية وتدفق الدم سليم (Capillary refill < 2s).";
+                }
+            }
+
+            function updateModalContent(currentLayer, isVascularHazard, angleEval) {
+                const instLabel = state.instrument === 'cannula' ? 'كانيولا كليلة' : 'إبرة حادة';
+                const techLabels = {
+                    'bolus': 'بولس نقطي',
+                    'linear': 'خطي تراجعي',
+                    'fanning': 'مروحي نسيجي',
+                    'micro': 'تقطير ميكروي'
+                };
+
+                modalTotalVolText.textContent = `${state.injectedVolume.toFixed(2)} / 1.00 mL`;
+                modalLiftText.textContent = `+${state.totalLiftMm} mm`;
+                modalLayerText.textContent = `${currentLayer.shortName} • ${techLabels[state.technique]}`;
+                modalAngleText.textContent = `${state.currentAngle}° (${instLabel})`;
+                
+                modalAngleComplianceVal.textContent = `${angleEval.compliance}% (${angleEval.compliance >= 85 ? 'مثالي' : (angleEval.isDanger ? 'خطر حرج' : 'مقبول')})`;
+                modalAngleDetailText.textContent = angleEval.desc;
+
+                modalGPrimeDetail.textContent = currentLayer.gPrime;
+                modalCohesivityDetail.textContent = currentLayer.cohesivity;
+                modalHACnc.textContent = currentLayer.haCnc;
+                modalCrosslinking.textContent = currentLayer.crosslinking;
+                modalTissueResponseText.textContent = currentLayer.tissueResponse;
+
+                const instFactor = state.instrument === 'cannula' ? 0.35 : 1.0;
+                const vascRisk = isVascularHazard ? Math.round(92 * instFactor) : Math.round(currentLayer.vascRiskBase * instFactor);
+                modalVascRiskPct.textContent = `${vascRisk}% (${isVascularHazard ? 'خطر وعائي' : 'منخفض'})`;
+                
+                const tyndallRisk = currentLayer === LAYERS.EPIDERMIS_DERMIS ? 85 : 0;
+                modalTyndallRiskPct.textContent = `${tyndallRisk}%`;
+                modalHyaluronidaseDose.textContent = currentLayer.antidoteDose;
+            }
+
+            function highlightTargetLayerMatching(currentLayer) {
+                layerRadioCards.forEach(card => {
+                    const cardLayer = card.getAttribute('data-layer');
+                    const radio = card.querySelector('input[type="radio"]');
+                    
+                    let isMatch = false;
+                    if (cardLayer === 'intradermal' && currentLayer === LAYERS.EPIDERMIS_DERMIS) isMatch = true;
+                    if (cardLayer === 'subcutaneous' && (currentLayer === LAYERS.SUBCUTANEOUS || currentLayer === LAYERS.SMAS_MUSCLE)) isMatch = true;
+                    if (cardLayer === 'supraperiosteal' && (currentLayer === LAYERS.DEEP_FAT || currentLayer === LAYERS.BONE)) isMatch = true;
+
+                    if (isMatch) {
+                        card.classList.add('border-primary', 'bg-primary-surface', 'border-2');
+                        card.classList.remove('border-slate-200', 'bg-white');
+                        radio.checked = true;
+                    } else {
+                        card.classList.remove('border-primary', 'bg-primary-surface', 'border-2');
+                        card.classList.add('border-slate-200');
+                    }
+                });
+            }
+
+            // -------------------------------------------------------------
+            // 7. INJECTION BOLUS & TECHNIQUES ENGINE
+            // -------------------------------------------------------------
+            function injectFiller() {
+                if (state.injectedVolume >= state.maxVolume) {
+                    alert("سعة المحقنة نفدت بالكامل (1.00 مل). اضغط على إعادة ضبط لإعادة التعبئة.");
+                    return;
+                }
+
+                initAudio();
+                const step = state.bolusStep;
+                state.injectedVolume = Math.min(state.maxVolume, +(state.injectedVolume + step).toFixed(2));
+                
+                const bolusX = state.needleX;
+                const bolusY = state.needleY;
+                const analysis = getTissueAnalysis(state.currentDepth, bolusX, bolusY);
+                const currentLayer = analysis.layer;
+
+                injectionFlash.setAttribute('opacity', '1');
+                setTimeout(() => {
+                    injectionFlash.setAttribute('opacity', '0');
+                }, 200);
+
+                playSound('inject');
+
+                const bolusId = 'bolus_' + Date.now();
+                const bolusG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                bolusG.setAttribute('id', bolusId);
+                bolusG.setAttribute('class', 'bolus-item bolus-bubble');
+                bolusG.setAttribute('transform', `translate(${bolusX}, ${bolusY})`);
+
+                const fillColor = analysis.isNearArtery ? 'url(#arteryGrad)' : 'url(#fillerGelGrad)';
+                const strokeColor = analysis.isNearArtery ? '#ef4444' : '#0284c7';
+
+                // Visual technique rendering based on state.technique
+                if (state.technique === 'linear') {
+                    // Retrograde Linear Threading (elongated strand)
+                    const angleRad = (-(90 - state.currentAngle)) * Math.PI / 180;
+                    const len = 32 + (step * 80);
+                    const dx = Math.sin(angleRad) * len;
+                    const dy = -Math.cos(angleRad) * len;
+
+                    bolusG.innerHTML = `
+                        <line x1="0" y1="0" x2="${dx}" y2="${dy}" stroke="${strokeColor}" stroke-width="12" stroke-linecap="round" opacity="0.4" filter="url(#gelGlow)" />
+                        <line x1="0" y1="0" x2="${dx}" y2="${dy}" stroke="${fillColor}" stroke-width="8" stroke-linecap="round" opacity="0.95" />
+                        <circle cx="0" cy="0" r="5" fill="#ffffff" opacity="0.8" />
+                        <g transform="translate(${dx + 10}, ${dy - 8})">
+                            <rect x="0" y="0" width="56" height="15" rx="4" fill="#0f172a" fill-opacity="0.85" stroke="#38bdf8" stroke-width="0.5" />
+                            <text class="bolus-vol-tag" x="28" y="11" font-size="8" font-weight="700" fill="#38bdf8" text-anchor="middle" font-family="JetBrains Mono">خطي ${step.toFixed(2)}</text>
+                        </g>
+                    `;
+                } else if (state.technique === 'fanning') {
+                    // Fanning Technique (3 radial micro-threads)
+                    bolusG.innerHTML = `
+                        <path d="M 0 0 L -25 -20 M 0 0 L 0 -28 M 0 0 L 25 -20" stroke="${fillColor}" stroke-width="5" stroke-linecap="round" opacity="0.9" filter="url(#gelGlow)" />
+                        <circle cx="-25" cy="-20" r="5" fill="${fillColor}" />
+                        <circle cx="0" cy="-28" r="6" fill="${fillColor}" />
+                        <circle cx="25" cy="-20" r="5" fill="${fillColor}" />
+                        <circle cx="0" cy="0" r="7" fill="${fillColor}" />
+                        <g transform="translate(18, -14)">
+                            <rect x="0" y="0" width="56" height="15" rx="4" fill="#0f172a" fill-opacity="0.85" stroke="#38bdf8" stroke-width="0.5" />
+                            <text class="bolus-vol-tag" x="28" y="11" font-size="8" font-weight="700" fill="#38bdf8" text-anchor="middle" font-family="JetBrains Mono">مروحي ${step.toFixed(2)}</text>
+                        </g>
+                    `;
+                } else if (state.technique === 'micro') {
+                    // Micro-droplets (cluster of tiny beads)
+                    bolusG.innerHTML = `
+                        <circle cx="-10" cy="-4" r="4" fill="${fillColor}" opacity="0.9" />
+                        <circle cx="0" cy="0" r="5" fill="${fillColor}" opacity="0.95" />
+                        <circle cx="10" cy="-4" r="4" fill="${fillColor}" opacity="0.9" />
+                        <circle cx="5" cy="-12" r="3.5" fill="${fillColor}" opacity="0.9" />
+                        <g transform="translate(16, -14)">
+                            <rect x="0" y="0" width="56" height="15" rx="4" fill="#0f172a" fill-opacity="0.85" stroke="#38bdf8" stroke-width="0.5" />
+                            <text class="bolus-vol-tag" x="28" y="11" font-size="8" font-weight="700" fill="#38bdf8" text-anchor="middle" font-family="JetBrains Mono">ميكرو ${step.toFixed(2)}</text>
+                        </g>
+                    `;
+                } else {
+                    // Standard Depot Bolus
+                    const radius = Math.min(32, 8 + (step * 28));
+                    bolusG.innerHTML = `
+                        <circle class="tissue-deformation-ring" cx="0" cy="0" r="${radius + 4}" fill="none" stroke="${strokeColor}" opacity="0.6" />
+                        <circle class="bolus-glow" cx="0" cy="0" r="${radius + 5}" fill="${strokeColor}" opacity="0.32" filter="url(#gelGlow)" />
+                        <circle class="bolus-core" cx="0" cy="0" r="${radius}" fill="${fillColor}" stroke="#ffffff" stroke-width="1.2" opacity="0.92" />
+                        <ellipse cx="-3" cy="-3" rx="4" ry="2.2" fill="#ffffff" opacity="0.85" />
+                        <g transform="translate(18, -14)">
+                            <rect x="0" y="0" width="52" height="16" rx="4" fill="#0f172a" fill-opacity="0.85" stroke="#38bdf8" stroke-width="0.5" />
+                            <text class="bolus-vol-tag" x="26" y="11" font-size="8.5" font-weight="700" fill="#38bdf8" text-anchor="middle" font-family="JetBrains Mono">${step.toFixed(2)} مل</text>
+                        </g>
+                    `;
+                }
+
+                bolusesGroup.appendChild(bolusG);
+                state.boluses.push({ id: bolusId, volume: step, x: bolusX, y: bolusY, tech: state.technique });
+
+                showLiveInjectionResult(currentLayer, step, analysis.isNearArtery);
+                updateSyringeVolumeDisplay();
+                updateSimulation();
+            }
+
+            function showLiveInjectionResult(currentLayer, step, isVascularHazard) {
+                if (state.cardTimeout) clearTimeout(state.cardTimeout);
+
+                const techNames = { 'bolus': 'بولس', 'linear': 'خطي تراجعي', 'fanning': 'مروحي', 'micro': 'ميكرو' };
+                const instName = state.instrument === 'cannula' ? 'كانيولا' : 'إبرة';
+
+                resCardTitle.textContent = `تقرير الحقنة السريرية (+${step.toFixed(2)} مل | ${techNames[state.technique]} • ${instName})`;
+                resCardPlaneTag.textContent = `${currentLayer.shortName} • عمق ${state.currentDepth.toFixed(1)} مم • زاوية ${state.currentAngle}°`;
+
+                // Positive Metrics
+                resLiftVal.textContent = `+${state.totalLiftMm} مم`;
+                resBioIntVal.textContent = currentLayer.bioIntPct;
+                resStabilityVal.textContent = currentLayer.stabilityText;
+
+                // Negative Metrics
+                const instFactor = state.instrument === 'cannula' ? 0.35 : 1.0;
+                if (isVascularHazard) {
+                    const vRisk = Math.round(92 * instFactor);
+                    resVascVal.textContent = `${vRisk}% (خطر وعائي ⚠)`;
+                    resVascVal.className = "text-red-400 font-mono font-bold animate-pulse";
+                    resBlanchVal.textContent = "شبهة نقص تروية!";
+                    resBlanchVal.className = "text-red-400 font-bold";
+                    resCardAdviceText.textContent = "⚠ تحذير: اشتباه بانسداد وعائي! نفّذ فحص الشفط وبروتوكول الهيالورونيداز.";
+                } else {
+                    resVascVal.textContent = `${Math.round(currentLayer.vascRiskBase * instFactor)}% (منخفض)`;
+                    resVascVal.className = "text-emerald-400 font-mono";
+                    resBlanchVal.textContent = "سليم (CRT<2s)";
+                    resBlanchVal.className = "text-emerald-400";
+                    resCardAdviceText.textContent = currentLayer.actionAdvice;
+                }
+
+                if (currentLayer === LAYERS.EPIDERMIS_DERMIS) {
+                    resTyndallVal.textContent = "85% (تيندال مرتفع)";
+                    resTyndallVal.className = "text-amber-400 font-bold";
+                } else {
+                    resTyndallVal.textContent = "0% (آمن)";
+                    resTyndallVal.className = "text-emerald-400";
+                }
+
+                liveInjectionResultCard.classList.remove('hidden');
+
+                state.cardTimeout = setTimeout(() => {
+                    liveInjectionResultCard.classList.add('hidden');
+                }, 9000);
+            }
+
+            function updateSyringeVolumeDisplay() {
+                const remaining = (state.maxVolume - state.injectedVolume).toFixed(2);
+                statInjectedVol.innerHTML = `${state.injectedVolume.toFixed(2)} / 1.00 <span class="text-[10px] font-normal text-slate-500 font-sans">مل</span>`;
+                syringeBarLabel.textContent = `${remaining} مل متبقي`;
+                
+                const percentage = (remaining / state.maxVolume) * 100;
+                syringeProgressBar.style.width = `${percentage}%`;
+
+                const fluidHeight = (remaining / state.maxVolume) * 120;
+                const fluidY = -210 - fluidHeight;
+                barrelFluid.setAttribute('y', fluidY);
+                barrelFluid.setAttribute('height', Math.max(0, fluidHeight));
+
+                const plungerYOffset = (state.injectedVolume / state.maxVolume) * 120;
+                plungerAssembly.setAttribute('transform', `translate(0, ${plungerYOffset})`);
+            }
+
+            // -------------------------------------------------------------
+            // 8. SAFETY ASPIRATION TEST
+            // -------------------------------------------------------------
+            function performAspirationTest() {
+                if (state.isAspirating) return;
+                state.isAspirating = true;
+                initAudio();
+
+                aspirateBtnText.textContent = "جاري الشفط...";
+                aspirateBtn.classList.add('opacity-75', 'cursor-wait');
+
+                const currentPlungerOffset = (state.injectedVolume / state.maxVolume) * 120;
+                plungerAssembly.setAttribute('transform', `translate(0, ${currentPlungerOffset - 10})`);
+
+                const analysis = getTissueAnalysis(state.currentDepth, state.needleX, state.needleY);
+
+                setTimeout(() => {
+                    if (analysis.isNearArtery) {
+                        hubFlashback.setAttribute('fill', '#dc2626');
+                        hubFlashback.setAttribute('opacity', '1');
+                        state.aspirationState = 'positive';
+                        statAspiration.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500 animate-ping"></span><span class="text-xs font-bold text-red-600">ارتجاع دموي (خطر!)</span>`;
+                        playSound('danger-alarm');
+                    } else {
+                        hubFlashback.setAttribute('fill', '#38bdf8');
+                        hubFlashback.setAttribute('opacity', '0.9');
+                        state.aspirationState = 'negative';
+                        statAspiration.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500"></span><span class="text-xs font-bold text-emerald-600">سليم وآمن (Clear)</span>`;
+                        playSound('safe-aspirate');
+                    }
+
+                    setTimeout(() => {
+                        plungerAssembly.setAttribute('transform', `translate(0, ${currentPlungerOffset})`);
+                        state.isAspirating = false;
+                        aspirateBtnText.textContent = "فحص الشفط";
+                        aspirateBtn.classList.remove('opacity-75', 'cursor-wait');
+                    }, 500);
+
+                }, 600);
+            }
+
+            // -------------------------------------------------------------
+            // 9. RESET, CLEAR, MODAL & BEFORE/AFTER FUNCTIONS
+            // -------------------------------------------------------------
+            function resetAll() {
+                playSound('click');
+                state.currentDepth = 2.4;
+                state.currentAngle = 40;
+                state.needleX = 480;
+                state.injectedVolume = 0.0;
+                state.aspirationState = 'none';
+                state.totalLiftMm = 0.0;
+                
+                bolusesGroup.innerHTML = '';
+                state.boluses = [];
+                skinLiftGroup.setAttribute('opacity', '0');
+
+                hubFlashback.setAttribute('fill', '#e0f2fe');
+                hubFlashback.setAttribute('opacity', '0.95');
+
+                statAspiration.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-300"></span><span>بانتظار الفحص</span>`;
+
+                if (state.cardTimeout) clearTimeout(state.cardTimeout);
+                liveInjectionResultCard.classList.add('hidden');
+
+                updateSyringeVolumeDisplay();
+                updateSimulation();
+            }
+
+            function clearBolusesOnly() {
+                playSound('click');
+                bolusesGroup.innerHTML = '';
+                state.boluses = [];
+                state.injectedVolume = 0.0;
+                state.totalLiftMm = 0.0;
+                skinLiftGroup.setAttribute('opacity', '0');
+                if (state.cardTimeout) clearTimeout(state.cardTimeout);
+                liveInjectionResultCard.classList.add('hidden');
+                updateSyringeVolumeDisplay();
+                updateSimulation();
+            }
+
+            function toggleBeforeAfter() {
+                playSound('click');
+                state.beforeAfterMode = !state.beforeAfterMode;
+                if (state.beforeAfterMode) {
+                    beforeAfterText.textContent = "المظهر قبل الحقن";
+                    bolusesGroup.style.display = 'none';
+                    skinLiftGroup.style.display = 'none';
+                    needleGroup.style.opacity = '0.35';
+                } else {
+                    beforeAfterText.textContent = "المظهر بعد الحقن";
+                    bolusesGroup.style.display = 'block';
+                    skinLiftGroup.style.display = 'block';
+                    needleGroup.style.opacity = '1';
+                }
+            }
+
+            function openReportModal() {
+                playSound('click');
+                fullReportModal.classList.remove('hidden');
+                setTimeout(() => {
+                    fullReportModal.classList.remove('opacity-0');
+                }, 10);
+            }
+
+            function closeReportModal() {
+                playSound('click');
+                fullReportModal.classList.add('opacity-0');
+                setTimeout(() => {
+                    fullReportModal.classList.add('hidden');
+                }, 200);
+            }
+
+            // -------------------------------------------------------------
+            // 10. EVENT LISTENERS
+            // -------------------------------------------------------------
+            // Technique Selector
+            techBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    playSound('click');
+                    techBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    state.technique = btn.getAttribute('data-tech');
+                    
+                    const techNames = {
+                        'bolus': 'بولس نقطي',
+                        'linear': 'خطي تراجعي',
+                        'fanning': 'مروحي نسيجي',
+                        'micro': 'تقطير ميكروي'
+                    };
+                    currentTechBadge.textContent = techNames[state.technique];
+                    injectBtnText.textContent = `حقن (${techNames[state.technique]} ${state.bolusStep.toFixed(2)} مل)`;
+                });
+            });
+
+            // Instrument Selector
+            instBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    playSound('click');
+                    instBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    state.instrument = btn.getAttribute('data-inst');
+                    updateSimulation();
+                });
+            });
+
+            // Dose Step Selector
+            doseBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    playSound('click');
+                    doseBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    state.bolusStep = parseFloat(btn.getAttribute('data-dose'));
+                    const techNames = { 'bolus': 'بولس', 'linear': 'خطي', 'fanning': 'مروحي', 'micro': 'ميكرو' };
+                    injectBtnText.textContent = `حقن (${techNames[state.technique]} ${state.bolusStep.toFixed(2)} مل)`;
+                });
+            });
+
+            // Tabs
+            tabBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    playSound('click');
+                    const targetTabId = btn.getAttribute('data-tab');
+                    
+                    tabBtns.forEach(b => {
+                        b.classList.remove('active', 'text-slate-700');
+                        b.classList.add('text-slate-500');
+                    });
+                    btn.classList.add('active', 'text-slate-700');
+                    btn.classList.remove('text-slate-500');
+
+                    tabContents.forEach(content => {
+                        if (content.id === targetTabId) {
+                            content.classList.remove('hidden');
+                        } else {
+                            content.classList.add('hidden');
+                        }
+                    });
+                });
+            });
+
+            depthSlider.addEventListener('input', (e) => {
+                state.currentDepth = parseFloat(e.target.value);
+                updateSimulation();
+            });
+
+            angleSlider.addEventListener('input', (e) => {
+                state.currentAngle = parseInt(e.target.value, 10);
+                updateSimulation();
+            });
+
+            layerRadioCards.forEach(card => {
+                card.addEventListener('click', () => {
+                    playSound('click');
+                    const targetDepth = parseFloat(card.getAttribute('data-depth'));
+                    const targetAngle = parseInt(card.getAttribute('data-angle'), 10);
+                    animateNeedleGlide(targetDepth, targetAngle);
+                });
+            });
+
+            function animateNeedleGlide(targetD, targetA) {
+                const startD = state.currentDepth;
+                const startA = state.currentAngle;
+                const startTime = performance.now();
+                const duration = 280;
+
+                function step(currentTime) {
+                    const elapsed = currentTime - startTime;
+                    const progress = Math.min(1, elapsed / duration);
+                    const ease = 1 - Math.pow(1 - progress, 3);
+
+                    state.currentDepth = +(startD + (targetD - startD) * ease).toFixed(2);
+                    state.currentAngle = Math.round(startA + (targetA - startA) * ease);
+                    
+                    updateSimulation();
+
+                    if (progress < 1) {
+                        requestAnimationFrame(step);
+                    }
+                }
+                requestAnimationFrame(step);
+            }
+
+            svg.addEventListener('pointerdown', (e) => {
+                state.isDragging = true;
+                needleGroup.classList.add('dragging');
+                svg.setPointerCapture(e.pointerId);
+                handleSvgPointerMove(e);
+            });
+
+            svg.addEventListener('pointermove', (e) => {
+                if (!state.isDragging) return;
+                handleSvgPointerMove(e);
+            });
+
+            function stopDrag(e) {
+                if (state.isDragging) {
+                    state.isDragging = false;
+                    needleGroup.classList.remove('dragging');
+                    try { svg.releasePointerCapture(e.pointerId); } catch(err){}
+                }
+            }
+
+            svg.addEventListener('pointerup', stopDrag);
+            svg.addEventListener('pointercancel', stopDrag);
+
+            function handleSvgPointerMove(e) {
+                const ctm = svg.getScreenCTM();
+                if (!ctm) return;
+                const pt = svg.createSVGPoint();
+                pt.x = e.clientX;
+                pt.y = e.clientY;
+                const svgPt = pt.matrixTransform(ctm.inverse());
+
+                state.needleX = Math.max(90, Math.min(830, svgPt.x));
+                const calculatedDepth = svgYToDepth(svgPt.y);
+                state.currentDepth = +Math.max(0, Math.min(8.0, calculatedDepth)).toFixed(1);
+                
+                updateSimulation();
+            }
+
+            // Action Buttons
+            injectBtn.addEventListener('click', injectFiller);
+            aspirateBtn.addEventListener('click', performAspirationTest);
+            resetBtn.addEventListener('click', resetAll);
+            quickClearBolusBtn.addEventListener('click', clearBolusesOnly);
+            toggleBeforeAfterBtn.addEventListener('click', toggleBeforeAfter);
+
+            // Drawer Card Close & Modal View
+            closeLiveResultCardBtn.addEventListener('click', () => {
+                liveInjectionResultCard.classList.add('hidden');
+            });
+            viewModalFromCardBtn.addEventListener('click', openReportModal);
+
+            // Modal Buttons
+            openFullReportBtn.addEventListener('click', openReportModal);
+            closeReportModalBtn.addEventListener('click', closeReportModal);
+            closeReportModalBottomBtn.addEventListener('click', closeReportModal);
+            fullReportModal.addEventListener('click', (e) => {
+                if (e.target === fullReportModal) closeReportModal();
+            });
+
+            // Audio Toggle
+            audioToggleBtn.addEventListener('click', () => {
+                state.audioEnabled = !state.audioEnabled;
+                if (state.audioEnabled) {
+                    audioIcon.textContent = "volume_up";
+                    audioText.textContent = "الصوت";
+                    audioToggleBtn.classList.remove('text-slate-400');
+                    audioToggleBtn.classList.add('text-slate-600');
+                    playSound('click');
+                } else {
+                    audioIcon.textContent = "volume_off";
+                    audioText.textContent = "مكتوم";
+                    audioToggleBtn.classList.add('text-slate-400');
+                    audioToggleBtn.classList.remove('text-slate-600');
+                }
+            });
+
+            // -------------------------------------------------------------
+            // 11. INITIALIZATION
+            // -------------------------------------------------------------
+            updateSimulation();
+            updateSyringeVolumeDisplay();
+
+        });
+    </script>
+</body>
+</html>
